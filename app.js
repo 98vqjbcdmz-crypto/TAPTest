@@ -370,7 +370,8 @@ async function shareResults() {
 }
 
 function mailResults() {
-  const subject = encodeURIComponent(`Evaluation motrice TAP test HCPN - ${state.participantId || "identifiant"}`);
+  const participant = state.participantId.trim() || "non renseigne";
+  const subject = encodeURIComponent(`Evaluation motrice TAP test HCPN - Identifiant : ${participant}`);
   const body = encodeURIComponent(plainTextSummary());
   window.location.href = `mailto:?subject=${subject}&body=${body}`;
 }
