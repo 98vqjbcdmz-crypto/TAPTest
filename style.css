@@ -163,6 +163,12 @@ h2 {
   font-weight: 700;
 }
 
+.field-alert span {
+  color: var(--coral);
+  font-size: 0.95rem;
+  font-weight: 900;
+}
+
 input,
 textarea {
   width: 100%;
@@ -178,6 +184,17 @@ input:focus,
 textarea:focus {
   border-color: var(--teal);
   box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.14);
+}
+
+.field-alert input {
+  border-color: var(--coral);
+  background: #fff5f4;
+  box-shadow: 0 0 0 4px rgba(185, 64, 58, 0.18);
+}
+
+.field-alert input:focus {
+  border-color: var(--coral);
+  box-shadow: 0 0 0 4px rgba(185, 64, 58, 0.24);
 }
 
 textarea {

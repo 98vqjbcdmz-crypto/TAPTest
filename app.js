@@ -294,6 +294,8 @@ function useTimer(measureId) {
 function focusStepsField(measureId) {
   const input = document.querySelector(`[data-field="steps"][data-measure="${measureId}"]`);
   if (!input) return;
+  const field = input.parentNode;
+  field.classList.add("field-alert");
   input.focus({ preventScroll: true });
   input.select();
   window.setTimeout(() => {
@@ -317,6 +319,9 @@ function handleValueInput(event) {
 
   const values = ensureMeasure(state.activeTimepoint, input.dataset.measure);
   values[input.dataset.field] = input.value;
+  if (input.dataset.field === "steps") {
+    input.parentNode.classList.remove("field-alert");
+  }
   saveState();
 
   if (input.dataset.field === "time") {
