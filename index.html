@@ -34,13 +34,7 @@
       </label>
     </section>
 
-    <nav class="tab-bar" aria-label="Navigation de l'evaluation">
-      <button class="tab-button is-active" type="button" data-tab="entry">Saisie</button>
-      <button class="tab-button" type="button" data-tab="conditions">Conditions</button>
-      <button class="tab-button" type="button" data-tab="summary">Resultats</button>
-    </nav>
-
-    <section class="tab-panel is-active" id="entry-panel">
+    <section class="entry-panel" id="entry-panel">
       <div class="timepoint-strip" role="group" aria-label="Temps de mesure">
         <button class="timepoint-button is-active" type="button" data-timepoint="before">Avant TAP</button>
         <button class="timepoint-button" type="button" data-timepoint="h2">2-4 h</button>
@@ -54,36 +48,11 @@
       </div>
 
       <div id="measure-list" class="measure-list"></div>
-    </section>
 
-    <section class="tab-panel" id="conditions-panel">
-      <div class="section-heading">
-        <h2>Conditions de passation</h2>
-        <p>Conserver le meme format de passation a chaque temps.</p>
-      </div>
-
-      <div class="check-grid">
-        <label><input type="checkbox" data-condition="shoes" /> Meme chaussage</label>
-        <label><input type="checkbox" data-condition="aid" /> Meme aide technique</label>
-        <label><input type="checkbox" data-condition="path" /> Meme parcours</label>
-        <label><input type="checkbox" data-condition="instruction" /> Meme consigne</label>
-        <label><input type="checkbox" data-condition="supervision" /> Meme surveillance</label>
-        <label><input type="checkbox" data-condition="practice" /> Essai de familiarisation realise si possible</label>
-      </div>
-
-      <label class="field">
-        <span>Elements qualitatifs utiles</span>
-        <textarea id="qualitative-notes" rows="5" placeholder="Elargissement du polygone, demi-tour, freezing, instabilite, apprehension..."></textarea>
+      <label class="field final-notes">
+        <span>Suggestions de notes</span>
+        <textarea id="qualitative-notes" rows="5" placeholder="Conditions d'examen, aide technique, chaussage utilise, elements qualitatifs utiles..."></textarea>
       </label>
-    </section>
-
-    <section class="tab-panel" id="summary-panel">
-      <div class="section-heading">
-        <h2>Synthese partageable</h2>
-        <p>Tableau sobre pour dossier, mail ou transmission.</p>
-      </div>
-
-      <div id="summary-card" class="summary-card" aria-live="polite"></div>
 
       <div class="action-row">
         <button id="share-results" class="primary-action" type="button">Partager</button>

@@ -169,23 +169,12 @@ textarea {
   resize: vertical;
 }
 
-.tab-bar,
 .timepoint-strip {
   display: grid;
   gap: 8px;
   margin: 14px 0;
 }
 
-.tab-bar {
-  grid-template-columns: repeat(3, 1fr);
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  padding: 8px 0;
-  background: var(--bg);
-}
-
-.tab-button,
 .timepoint-button {
   min-height: 42px;
   border: 1px solid var(--line);
@@ -195,7 +184,6 @@ textarea {
   font-weight: 800;
 }
 
-.tab-button.is-active,
 .timepoint-button.is-active {
   background: var(--blue);
   border-color: var(--blue);
@@ -204,14 +192,6 @@ textarea {
 
 .timepoint-strip {
   grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.tab-panel {
-  display: none;
-}
-
-.tab-panel.is-active {
-  display: block;
 }
 
 .protocol-note,
@@ -368,79 +348,6 @@ textarea {
   color: #fff;
 }
 
-.check-grid {
-  display: grid;
-  gap: 10px;
-  margin-bottom: 14px;
-}
-
-.check-grid label {
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-  padding: 12px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-}
-
-.check-grid input {
-  width: 20px;
-  height: 20px;
-  margin: 0;
-  accent-color: var(--teal);
-}
-
-.summary-card {
-  overflow: hidden;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  box-shadow: var(--shadow);
-}
-
-.summary-head {
-  display: grid;
-  gap: 4px;
-  padding: 14px;
-  background: var(--blue);
-  color: #fff;
-}
-
-.summary-head h3,
-.summary-head p {
-  margin: 0;
-}
-
-.summary-head p {
-  opacity: 0.86;
-  font-size: 0.88rem;
-}
-
-.summary-table-wrap {
-  overflow-x: auto;
-}
-
-.summary-table {
-  width: 100%;
-  border-collapse: collapse;
-  min-width: 640px;
-}
-
-.summary-table th,
-.summary-table td {
-  padding: 10px 9px;
-  border-bottom: 1px solid var(--line);
-  text-align: left;
-  font-size: 0.86rem;
-  vertical-align: top;
-}
-
-.summary-table th {
-  background: #edf4f7;
-  color: var(--blue);
-  font-size: 0.78rem;
-  text-transform: uppercase;
-}
-
 .status-chip {
   display: inline-flex;
   max-width: 100%;
@@ -466,13 +373,7 @@ textarea {
   color: var(--muted);
 }
 
-.summary-notes {
-  padding: 12px 14px;
-  color: var(--muted);
-  font-size: 0.88rem;
-  line-height: 1.45;
-}
-
+.final-notes,
 .action-row {
   margin-top: 12px;
 }
@@ -514,7 +415,6 @@ textarea {
     grid-template-columns: 1fr;
   }
 
-  .tab-button,
   .timepoint-button {
     min-height: 40px;
     padding: 8px 6px;

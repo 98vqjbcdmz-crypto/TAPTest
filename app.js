@@ -34,7 +34,6 @@ const measures = [
 const defaultState = {
   participantId: "",
   activeTimepoint: "before",
-  conditions: {},
   notes: "",
   values: {},
 };
@@ -46,7 +45,6 @@ const participantInput = document.getElementById("participant-id");
 const notesInput = document.getElementById("qualitative-notes");
 const measureList = document.getElementById("measure-list");
 const currentTimepointLabel = document.getElementById("current-timepoint-label");
-const summaryCard = document.getElementById("summary-card");
 
 function loadState() {
   try {
@@ -307,54 +305,8 @@ function rowFor(timepointId, measure) {
   `;
 }
 
-function checkedConditionLabels() {
-  const labels = {
-    shoes: "meme chaussage",
-    aid: "meme aide technique",
-    path: "meme parcours",
-    instruction: "meme consigne",
-    supervision: "meme surveillance",
-    practice: "familiarisation si possible",
-  };
-
-  return Object.entries(state.conditions)
-    .filter(([, checked]) => checked)
-    .map(([key]) => labels[key])
-    .join(", ");
-}
-
 function renderSummary() {
-  const rows = timepoints.flatMap((timepoint) => measures.map((measure) => rowFor(timepoint.id, measure))).join("");
-  const participant = state.participantId.trim() || "Non renseigne";
-  const checked = checkedConditionLabels() || "Non renseigne";
-  const notes = state.notes.trim() || "Aucune note qualitative renseignee.";
-
-  summaryCard.innerHTML = `
-    <div class="summary-head">
-      <h3>Evaluation TAP test</h3>
-      <p>Code: ${participant}</p>
-    </div>
-    <div class="summary-table-wrap">
-      <table class="summary-table">
-        <thead>
-          <tr>
-            <th>Temps</th>
-            <th>Mesure</th>
-            <th>Temps</th>
-            <th>Vitesse</th>
-            <th>Pas</th>
-            <th>Lecture</th>
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>
-    <div class="summary-notes">
-      <strong>Conditions:</strong> ${checked}<br>
-      <strong>Notes:</strong> ${notes}<br>
-      <strong>Seuils:</strong> TUG amelioration >= 5 s ; marche 6 m temps amelioration > 10 % ; nombre de pas diminution > 10 %.
-    </div>
-  `;
+  return plainTextSummary();
 }
 
 function plainTextSummary() {
@@ -387,8 +339,7 @@ function plainTextSummary() {
   });
 
   lines.push("");
-  lines.push(`Conditions: ${checkedConditionLabels() || "Non renseigne"}`);
-  lines.push(`Notes: ${state.notes.trim() || "Aucune note qualitative renseignee."}`);
+  lines.push(`Notes libres: ${state.notes.trim() || "Aucune note renseignee."}`);
   lines.push("Seuils: TUG amelioration >= 5 s ; marche 6 m temps amelioration > 10 % ; nombre de pas diminution > 10 %.");
 
   return lines.join("\n");
@@ -433,16 +384,6 @@ async function copyText(text) {
   alert("Synthese copiee dans le presse-papiers.");
 }
 
-function switchTab(tabId) {
-  document.querySelectorAll(".tab-button").forEach((button) => {
-    button.classList.toggle("is-active", button.dataset.tab === tabId);
-  });
-  document.querySelectorAll(".tab-panel").forEach((panel) => {
-    panel.classList.toggle("is-active", panel.id === `${tabId}-panel`);
-  });
-  renderSummary();
-}
-
 function bindEvents() {
   participantInput.value = state.participantId;
   notesInput.value = state.notes;
@@ -457,19 +398,6 @@ function bindEvents() {
     state.notes = notesInput.value;
     saveState();
     renderSummary();
-  });
-
-  document.querySelectorAll("[data-condition]").forEach((checkbox) => {
-    checkbox.checked = Boolean(state.conditions[checkbox.dataset.condition]);
-    checkbox.addEventListener("change", () => {
-      state.conditions[checkbox.dataset.condition] = checkbox.checked;
-      saveState();
-      renderSummary();
-    });
-  });
-
-  document.querySelectorAll(".tab-button").forEach((button) => {
-    button.addEventListener("click", () => switchTab(button.dataset.tab));
   });
 
   document.querySelectorAll(".timepoint-button").forEach((button) => {
