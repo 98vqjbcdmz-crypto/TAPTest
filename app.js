@@ -325,34 +325,31 @@ function stepsValue(value) {
 }
 
 function plainTextSummary() {
+  const timepoint = timepoints.find((item) => item.id === state.activeTimepoint);
+  const tug = state.values[timepoint.id]?.tug || {};
+  const usual = state.values[timepoint.id]?.walkUsual || {};
+  const fast = state.values[timepoint.id]?.walkFast || {};
+  const tugTime = numberValue(tug.time);
+  const usualTime = numberValue(usual.time);
+  const fastTime = numberValue(fast.time);
+  const usualSpeed = usualTime ? 6 / usualTime : null;
+  const fastSpeed = fastTime ? 6 / fastTime : null;
+
   const lines = [
     "Evaluation motrice du TAP test pour HCPN:",
     `- Date / heure : ${exportTimestamp()}`,
     `- Identifiant : ${state.participantId.trim() || ""}`,
+    `- ${timepoint.label}`,
+    "- Marche sur 6 m :",
+    "-- usuelle",
+    `--- vitesse (m/s) : ${fieldValue(usualSpeed)}`,
+    `--- nombre de pas : ${stepsValue(numberValue(usual.steps))}`,
+    "-- rapide",
+    `--- vitesse (m/s) : ${fieldValue(fastSpeed)}`,
+    `--- nombre de pas : ${stepsValue(numberValue(fast.steps))}`,
+    `- TUG (s) : ${fieldValue(tugTime)}`,
+    `- Notes : ${state.notes.trim() || ""}`,
   ];
-
-  timepoints.forEach((timepoint) => {
-    const tug = state.values[timepoint.id]?.tug || {};
-    const usual = state.values[timepoint.id]?.walkUsual || {};
-    const fast = state.values[timepoint.id]?.walkFast || {};
-    const tugTime = numberValue(tug.time);
-    const usualTime = numberValue(usual.time);
-    const fastTime = numberValue(fast.time);
-    const usualSpeed = usualTime ? 6 / usualTime : null;
-    const fastSpeed = fastTime ? 6 / fastTime : null;
-
-    lines.push(`- ${timepoint.label}`);
-    lines.push("- Marche sur 6 m :");
-    lines.push("-- usuelle");
-    lines.push(`--- vitesse (m/s) : ${fieldValue(usualSpeed)}`);
-    lines.push(`--- nombre de pas : ${stepsValue(numberValue(usual.steps))}`);
-    lines.push("-- rapide");
-    lines.push(`--- vitesse (m/s) : ${fieldValue(fastSpeed)}`);
-    lines.push(`--- nombre de pas : ${stepsValue(numberValue(fast.steps))}`);
-    lines.push(`- TUG (s) : ${fieldValue(tugTime)}`);
-  });
-
-  lines.push(`- Notes : ${state.notes.trim() || ""}`);
 
   return lines.join("\n");
 }
@@ -371,7 +368,8 @@ async function shareResults() {
 
 function mailResults() {
   const participant = state.participantId.trim() || "non renseigne";
-  const subject = encodeURIComponent(`Evaluation motrice TAP test HCPN - Identifiant : ${participant}`);
+  const timepoint = timepoints.find((item) => item.id === state.activeTimepoint);
+  const subject = encodeURIComponent(`Evaluation motrice TAP test HCPN - ${timepoint.label} - Identifiant : ${participant}`);
   const body = encodeURIComponent(plainTextSummary());
   window.location.href = `mailto:?subject=${subject}&body=${body}`;
 }
