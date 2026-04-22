@@ -309,38 +309,50 @@ function renderSummary() {
   return plainTextSummary();
 }
 
+function exportTimestamp() {
+  return new Intl.DateTimeFormat("fr-FR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(new Date());
+}
+
+function fieldValue(value, suffix = "") {
+  return Number.isFinite(value) ? `${formatNumber(value)}${suffix}` : "";
+}
+
+function stepsValue(value) {
+  return Number.isFinite(value) ? formatNumber(value, 0) : "";
+}
+
 function plainTextSummary() {
   const lines = [
-    "Evaluation TAP test",
-    `Code anonymise: ${state.participantId.trim() || "Non renseigne"}`,
-    "",
-    "Temps;Mesure;Temps (s);Vitesse (m/s);Pas;Lecture",
+    "Evaluation motrice du TAP test pour HCPN:",
+    `- Date / heure : ${exportTimestamp()}`,
+    `- Identifiant : ${state.participantId.trim() || ""}`,
   ];
 
   timepoints.forEach((timepoint) => {
-    measures.forEach((measure) => {
-      const values = state.values[timepoint.id]?.[measure.id] || {};
-      const time = numberValue(values.time);
-      const steps = numberValue(values.steps);
-      const speed = measure.distance && time ? measure.distance / time : null;
-      const status = statusFor(timepoint.id, measure.id, "time");
-      const stepsStatus = measure.fields.includes("steps") ? statusFor(timepoint.id, measure.id, "steps") : null;
-      const lecture = [status.label, status.detail, stepsStatus?.label, stepsStatus?.detail].filter(Boolean).join(" - ");
+    const tug = state.values[timepoint.id]?.tug || {};
+    const usual = state.values[timepoint.id]?.walkUsual || {};
+    const fast = state.values[timepoint.id]?.walkFast || {};
+    const tugTime = numberValue(tug.time);
+    const usualTime = numberValue(usual.time);
+    const fastTime = numberValue(fast.time);
+    const usualSpeed = usualTime ? 6 / usualTime : null;
+    const fastSpeed = fastTime ? 6 / fastTime : null;
 
-      lines.push([
-        timepoint.label,
-        measure.label,
-        time ? formatNumber(time) : "",
-        speed ? formatNumber(speed) : "",
-        steps ? formatNumber(steps, 0) : "",
-        lecture,
-      ].join(";"));
-    });
+    lines.push(`- ${timepoint.label}`);
+    lines.push("- Marche sur 6 m :");
+    lines.push("-- usuelle");
+    lines.push(`--- vitesse (m/s) : ${fieldValue(usualSpeed)}`);
+    lines.push(`--- nombre de pas : ${stepsValue(numberValue(usual.steps))}`);
+    lines.push("-- rapide");
+    lines.push(`--- vitesse (m/s) : ${fieldValue(fastSpeed)}`);
+    lines.push(`--- nombre de pas : ${stepsValue(numberValue(fast.steps))}`);
+    lines.push(`- TUG (s) : ${fieldValue(tugTime)}`);
   });
 
-  lines.push("");
-  lines.push(`Notes libres: ${state.notes.trim() || "Aucune note renseignee."}`);
-  lines.push("Seuils: TUG amelioration >= 5 s ; marche 6 m temps amelioration > 10 % ; nombre de pas diminution > 10 %.");
+  lines.push(`- Notes : ${state.notes.trim() || ""}`);
 
   return lines.join("\n");
 }
@@ -358,7 +370,7 @@ async function shareResults() {
 }
 
 function mailResults() {
-  const subject = encodeURIComponent(`Evaluation TAP test - ${state.participantId || "code anonymise"}`);
+  const subject = encodeURIComponent(`Evaluation motrice TAP test HCPN - ${state.participantId || "identifiant"}`);
   const body = encodeURIComponent(plainTextSummary());
   window.location.href = `mailto:?subject=${subject}&body=${body}`;
 }
