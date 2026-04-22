@@ -47,10 +47,12 @@ const measureList = document.getElementById("measure-list");
 const currentTimepointLabel = document.getElementById("current-timepoint-label");
 const resetAllButton = document.getElementById("reset-all");
 const stopOverlay = document.getElementById("stop-overlay");
+const stopOverlayLabel = document.getElementById("stop-overlay-label");
 const stopOverlayMeasure = document.getElementById("stop-overlay-measure");
 const stopOverlayTime = document.getElementById("stop-overlay-time");
 
 let overlayTimerKey = "";
+let overlayMode = "";
 
 function eachNode(selector, callback) {
   const nodes = document.querySelectorAll(selector);
@@ -196,7 +198,7 @@ function renderMeasureList() {
     const timer = getTimer(state.activeTimepoint, measure.id);
     const time = numberValue(values.time);
     const speed = measure.distance && time ? measure.distance / time : null;
-    const toggleLabel = timer.running ? "Arreter" : "Demarrer";
+    const toggleLabel = timer.running ? "Arreter" : "Armer";
 
     card.innerHTML = `
       <div class="measure-header">
@@ -261,13 +263,17 @@ function startTimer(measureId) {
   if (timer.running) return;
   timer.running = true;
   timer.startedAt = performance.now();
-  showStopOverlay(measureId);
+  showRunningOverlay(measureId);
   updateTimerDisplay(state.activeTimepoint, measureId);
 }
 
-function showStopOverlay(measureId) {
+function showOverlay(measureId, mode) {
   const measure = findMeasure(measureId);
   overlayTimerKey = timerKey(state.activeTimepoint, measureId);
+  overlayMode = mode;
+  if (stopOverlayLabel) {
+    stopOverlayLabel.textContent = mode === "armed" ? "DEMARRER" : "ARRETER";
+  }
   if (stopOverlayMeasure) {
     stopOverlayMeasure.textContent = measure ? measure.label : "";
   }
@@ -275,14 +281,27 @@ function showStopOverlay(measureId) {
     stopOverlayTime.textContent = formatTimer(currentTimerMs(getTimer(state.activeTimepoint, measureId)));
   }
   if (stopOverlay) {
+    stopOverlay.classList.toggle("is-armed", mode === "armed");
+    stopOverlay.classList.toggle("is-running", mode === "running");
     stopOverlay.classList.add("is-visible");
   }
 }
 
+function showArmedOverlay(measureId) {
+  showOverlay(measureId, "armed");
+}
+
+function showRunningOverlay(measureId) {
+  showOverlay(measureId, "running");
+}
+
 function hideStopOverlay() {
   overlayTimerKey = "";
+  overlayMode = "";
   if (stopOverlay) {
     stopOverlay.classList.remove("is-visible");
+    stopOverlay.classList.remove("is-armed");
+    stopOverlay.classList.remove("is-running");
   }
 }
 
@@ -301,14 +320,14 @@ function toggleTimer(measureId) {
     stopTimer(measureId);
     return;
   }
-  startTimer(measureId);
+  showArmedOverlay(measureId);
   renderTimerButton(measureId);
 }
 
 function renderTimerButton(measureId) {
   const timer = getTimer(state.activeTimepoint, measureId);
   const button = document.querySelector(`[data-action="toggle"][data-measure="${measureId}"]`);
-  if (button) button.textContent = timer.running ? "Arreter" : "Demarrer";
+  if (button) button.textContent = timer.running ? "Arreter" : "Armer";
 }
 
 function useTimer(measureId) {
@@ -548,7 +567,11 @@ function bindEvents() {
       if (!overlayTimerKey) return;
       const parts = overlayTimerKey.split(":");
       if (parts[0] === state.activeTimepoint) {
-        stopTimer(parts[1]);
+        if (overlayMode === "armed") {
+          startTimer(parts[1]);
+        } else if (overlayMode === "running") {
+          stopTimer(parts[1]);
+        }
       }
     });
   }

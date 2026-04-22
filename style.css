@@ -363,6 +363,14 @@ textarea {
   display: grid;
 }
 
+.stop-overlay.is-armed {
+  background: rgba(15, 118, 110, 0.96);
+}
+
+.stop-overlay.is-running {
+  background: rgba(185, 64, 58, 0.96);
+}
+
 .stop-overlay-label {
   font-size: clamp(3.4rem, 16vw, 8rem);
   font-weight: 1000;
