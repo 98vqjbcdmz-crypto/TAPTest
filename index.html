@@ -2,25 +2,95 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Chrono Web</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#f7fafc" />
+  <title>TAP test - Evaluation mobile</title>
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
-  <main class="card">
-    <h1>Chronometre</h1>
-    <p>Version web, prete pour GitHub Pages.</p>
+  <main class="app-shell">
+    <header class="brand-band" aria-label="En-tete TAP test">
+      <div class="logo-slot" aria-label="Emplacement logo CHU">
+        <span>Logo CHU</span>
+      </div>
+      <div class="brand-title">
+        <p class="eyebrow">Protocole pratique</p>
+        <h1>TAP test</h1>
+        <p>TUG + marche 6 m, avant et apres ponction depletive.</p>
+      </div>
+      <a class="qr-slot" href="./assets/qr-contact.jpg" aria-label="QR code de contact">
+        <img src="./assets/qr-contact.jpg" alt="QR code de contact CHU" />
+      </a>
+    </header>
 
-    <div class="clock" id="clock">00:00.00</div>
+    <section class="identity-band" aria-labelledby="identity-title">
+      <div>
+        <h2 id="identity-title">Identification anonymisee</h2>
+        <p>Utiliser un signe libre non nominatif.</p>
+      </div>
+      <label class="field compact-field">
+        <span>Code</span>
+        <input id="participant-id" type="text" inputmode="text" autocomplete="off" placeholder="ex. TAP-042" />
+      </label>
+    </section>
 
-    <div class="buttons">
-      <button id="start">Start</button>
-      <button id="stop">Stop</button>
-      <button id="reset">Reset</button>
-      <button id="lap">Lap</button>
-    </div>
+    <nav class="tab-bar" aria-label="Navigation de l'evaluation">
+      <button class="tab-button is-active" type="button" data-tab="entry">Saisie</button>
+      <button class="tab-button" type="button" data-tab="conditions">Conditions</button>
+      <button class="tab-button" type="button" data-tab="summary">Resultats</button>
+    </nav>
 
-    <ol id="laps"></ol>
+    <section class="tab-panel is-active" id="entry-panel">
+      <div class="timepoint-strip" role="group" aria-label="Temps de mesure">
+        <button class="timepoint-button is-active" type="button" data-timepoint="before">Avant TAP</button>
+        <button class="timepoint-button" type="button" data-timepoint="h2">2-4 h</button>
+        <button class="timepoint-button" type="button" data-timepoint="h24">24 h</button>
+        <button class="timepoint-button" type="button" data-timepoint="h48">48 h</button>
+      </div>
+
+      <div class="protocol-note">
+        <strong id="current-timepoint-label">Avant TAP</strong>
+        <span>Renseigner le temps, puis le nombre de pas pour les marches de 6 m. La vitesse est calculee automatiquement.</span>
+      </div>
+
+      <div id="measure-list" class="measure-list"></div>
+    </section>
+
+    <section class="tab-panel" id="conditions-panel">
+      <div class="section-heading">
+        <h2>Conditions de passation</h2>
+        <p>Conserver le meme format de passation a chaque temps.</p>
+      </div>
+
+      <div class="check-grid">
+        <label><input type="checkbox" data-condition="shoes" /> Meme chaussage</label>
+        <label><input type="checkbox" data-condition="aid" /> Meme aide technique</label>
+        <label><input type="checkbox" data-condition="path" /> Meme parcours</label>
+        <label><input type="checkbox" data-condition="instruction" /> Meme consigne</label>
+        <label><input type="checkbox" data-condition="supervision" /> Meme surveillance</label>
+        <label><input type="checkbox" data-condition="practice" /> Essai de familiarisation realise si possible</label>
+      </div>
+
+      <label class="field">
+        <span>Elements qualitatifs utiles</span>
+        <textarea id="qualitative-notes" rows="5" placeholder="Elargissement du polygone, demi-tour, freezing, instabilite, apprehension..."></textarea>
+      </label>
+    </section>
+
+    <section class="tab-panel" id="summary-panel">
+      <div class="section-heading">
+        <h2>Synthese partageable</h2>
+        <p>Tableau sobre pour dossier, mail ou transmission.</p>
+      </div>
+
+      <div id="summary-card" class="summary-card" aria-live="polite"></div>
+
+      <div class="action-row">
+        <button id="share-results" class="primary-action" type="button">Partager</button>
+        <button id="mail-results" class="secondary-action" type="button">Mail</button>
+        <button id="copy-results" class="secondary-action" type="button">Copier</button>
+      </div>
+    </section>
   </main>
 
   <script src="./app.js"></script>
