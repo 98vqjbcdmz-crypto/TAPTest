@@ -47,10 +47,49 @@ const measureList = document.getElementById("measure-list");
 const currentTimepointLabel = document.getElementById("current-timepoint-label");
 const resetAllButton = document.getElementById("reset-all");
 
+function eachNode(selector, callback) {
+  const nodes = document.querySelectorAll(selector);
+  for (let index = 0; index < nodes.length; index += 1) {
+    callback(nodes[index]);
+  }
+}
+
+function findTimepoint(timepointId) {
+  for (let index = 0; index < timepoints.length; index += 1) {
+    if (timepoints[index].id === timepointId) return timepoints[index];
+  }
+  return timepoints[0];
+}
+
+function findMeasure(measureId) {
+  for (let index = 0; index < measures.length; index += 1) {
+    if (measures[index].id === measureId) return measures[index];
+  }
+  return null;
+}
+
+function closestActionButton(element) {
+  let current = element;
+  while (current && current !== measureList) {
+    if (current.dataset && current.dataset.action) return current;
+    current = current.parentNode;
+  }
+  return null;
+}
+
+function closestFieldInput(element) {
+  let current = element;
+  while (current && current !== measureList) {
+    if (current.dataset && current.dataset.field) return current;
+    current = current.parentNode;
+  }
+  return null;
+}
+
 function loadState() {
   try {
     const saved = JSON.parse(localStorage.getItem("tap-evaluation") || "null");
-    return saved ? { ...defaultState, ...saved } : freshDefaultState();
+    return saved ? Object.assign(freshDefaultState(), saved) : freshDefaultState();
   } catch {
     return freshDefaultState();
   }
@@ -79,8 +118,12 @@ function resetState() {
 }
 
 function ensureMeasure(timepointId, measureId) {
-  state.values[timepointId] ||= {};
-  state.values[timepointId][measureId] ||= {};
+  if (!state.values[timepointId]) {
+    state.values[timepointId] = {};
+  }
+  if (!state.values[timepointId][measureId]) {
+    state.values[timepointId][measureId] = {};
+  }
   return state.values[timepointId][measureId];
 }
 
@@ -128,10 +171,11 @@ function currentTimerMs(timer) {
 }
 
 function renderTimepointButtons() {
-  document.querySelectorAll(".timepoint-button").forEach((button) => {
+  eachNode(".timepoint-button", (button) => {
     button.classList.toggle("is-active", button.dataset.timepoint === state.activeTimepoint);
   });
-  currentTimepointLabel.textContent = timepoints.find((item) => item.id === state.activeTimepoint).label;
+  const timepoint = findTimepoint(state.activeTimepoint);
+  currentTimepointLabel.textContent = timepoint.label;
 }
 
 function renderMeasureList() {
@@ -235,12 +279,12 @@ function useTimer(measureId) {
   timer.running = false;
   cancelAnimationFrame(timer.raf);
 
-  const measure = measures.find((item) => item.id === measureId);
+  const measure = findMeasure(measureId);
   const values = ensureMeasure(state.activeTimepoint, measureId);
   values.time = (timer.elapsed / 1000).toFixed(2);
   saveState();
   renderMeasureList();
-  if (measure?.fields.includes("steps")) {
+  if (measure && measure.fields.includes("steps")) {
     focusStepsField(measureId);
   }
   renderSummary();
@@ -266,7 +310,7 @@ function resetTimer(measureId) {
 }
 
 function handleValueInput(event) {
-  const input = event.target.closest("[data-field]");
+  const input = closestFieldInput(event.target);
   if (!input) return;
 
   const values = ensureMeasure(state.activeTimepoint, input.dataset.measure);
@@ -280,11 +324,13 @@ function handleValueInput(event) {
 }
 
 function baselineValue(measureId, field) {
-  return numberValue(state.values.before?.[measureId]?.[field]);
+  const measure = state.values.before && state.values.before[measureId];
+  return numberValue(measure && measure[field]);
 }
 
 function pointValue(timepointId, measureId, field) {
-  return numberValue(state.values[timepointId]?.[measureId]?.[field]);
+  const measure = state.values[timepointId] && state.values[timepointId][measureId];
+  return numberValue(measure && measure[field]);
 }
 
 function statusFor(timepointId, measureId, field) {
@@ -311,7 +357,7 @@ function statusFor(timepointId, measureId, field) {
 }
 
 function rowFor(timepointId, measure) {
-  const values = state.values[timepointId]?.[measure.id] || {};
+  const values = (state.values[timepointId] && state.values[timepointId][measure.id]) || {};
   const time = numberValue(values.time);
   const steps = numberValue(values.steps);
   const speed = measure.distance && time ? measure.distance / time : null;
@@ -320,7 +366,7 @@ function rowFor(timepointId, measure) {
 
   return `
     <tr>
-      <td>${timepoints.find((item) => item.id === timepointId).label}</td>
+      <td>${findTimepoint(timepointId).label}</td>
       <td>${measure.label}</td>
       <td>${time ? `${formatNumber(time)} s` : "-"}</td>
       <td>${speed ? `${formatNumber(speed)} m/s` : "-"}</td>
@@ -354,10 +400,11 @@ function stepsValue(value) {
 }
 
 function plainTextSummary() {
-  const timepoint = timepoints.find((item) => item.id === state.activeTimepoint);
-  const tug = state.values[timepoint.id]?.tug || {};
-  const usual = state.values[timepoint.id]?.walkUsual || {};
-  const fast = state.values[timepoint.id]?.walkFast || {};
+  const timepoint = findTimepoint(state.activeTimepoint);
+  const timepointValues = state.values[timepoint.id] || {};
+  const tug = timepointValues.tug || {};
+  const usual = timepointValues.walkUsual || {};
+  const fast = timepointValues.walkFast || {};
   const tugTime = numberValue(tug.time);
   const usualTime = numberValue(usual.time);
   const fastTime = numberValue(fast.time);
@@ -397,7 +444,7 @@ async function shareResults() {
 
 function mailResults() {
   const participant = state.participantId.trim() || "non renseigne";
-  const timepoint = timepoints.find((item) => item.id === state.activeTimepoint);
+  const timepoint = findTimepoint(state.activeTimepoint);
   const subject = encodeURIComponent(`Evaluation motrice TAP test HCPN - ${timepoint.label} - Identifiant : ${participant}`);
   const body = encodeURIComponent(plainTextSummary());
   window.location.href = `mailto:?subject=${subject}&body=${body}`;
@@ -440,12 +487,14 @@ function bindEvents() {
     renderSummary();
   });
 
-  resetAllButton.addEventListener("click", () => {
-    const confirmed = window.confirm("Tout effacer pour demarrer un nouveau patient ?");
-    if (confirmed) resetState();
-  });
+  if (resetAllButton) {
+    resetAllButton.addEventListener("click", () => {
+      const confirmed = window.confirm("Tout effacer pour demarrer un nouveau patient ?");
+      if (confirmed) resetState();
+    });
+  }
 
-  document.querySelectorAll(".timepoint-button").forEach((button) => {
+  eachNode(".timepoint-button", (button) => {
     button.addEventListener("click", () => {
       state.activeTimepoint = button.dataset.timepoint;
       saveState();
@@ -456,7 +505,7 @@ function bindEvents() {
 
   measureList.addEventListener("input", handleValueInput);
   measureList.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-action]");
+    const button = closestActionButton(event.target);
     if (!button) return;
 
     if (button.dataset.action === "toggle") toggleTimer(button.dataset.measure);
