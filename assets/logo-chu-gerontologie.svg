@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1384 986" role="img" aria-labelledby="title desc">
+  <title id="title">Logo CHU Montpellier Gerontologie</title>
+  <desc id="desc">Logo CHU Montpellier avec mention Gerontologie.</desc>
+  <rect width="1384" height="986" fill="#fff"/>
+  <path d="M24 564C31 353 186 193 391 96 591 1 851-23 1049 50c181 67 277 218 257 392-21 178-155 320-348 423-202 108-457 147-658 103C112 927 17 777 24 564Z" fill="#006fb3"/>
+  <path d="M668 98h532c78 0 143 60 168 141H814c-80 0-146-61-146-141Z" fill="#dcae82"/>
+  <path d="M1200 98h6c98 0 178 79 178 178v-36H668v-142h532Z" fill="#dcae82"/>
+  <path d="M1305 239h79v24c-23 20-50 36-80 48Z" fill="#31208b"/>
+  <text x="787" y="206" font-family="Avenir Next, Segoe UI, Arial, sans-serif" font-size="52" font-weight="800" fill="#fff" letter-spacing="1">GÉRONTOLOGIE</text>
+  <text x="247" y="609" font-family="Avenir Next, Segoe UI, Arial, sans-serif" font-size="344" font-weight="700" fill="#fff" letter-spacing="24">CHU</text>
+  <text x="594" y="734" font-family="Avenir Next, Segoe UI, Arial, sans-serif" font-size="82" font-weight="800" fill="#fff" letter-spacing="8">MONTPELLIER</text>
+  <rect x="751" y="765" width="11" height="181" rx="5.5" fill="#dcae82"/>
+</svg>

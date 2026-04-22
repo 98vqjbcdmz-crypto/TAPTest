@@ -69,11 +69,7 @@ button {
 }
 
 .logo-slot {
-  color: var(--blue);
-  font-weight: 800;
-  font-size: 0.78rem;
-  text-align: center;
-  padding: 8px;
+  padding: 6px;
 }
 
 .qr-slot {
@@ -85,6 +81,13 @@ button {
   height: 58px;
   object-fit: contain;
   image-rendering: pixelated;
+}
+
+.logo-slot img {
+  width: 100%;
+  max-width: 78px;
+  height: auto;
+  display: block;
 }
 
 .brand-title {
@@ -406,13 +409,13 @@ textarea {
     min-height: 58px;
   }
 
-  .logo-slot {
-    font-size: 0.68rem;
-  }
-
   .qr-slot img {
     width: 46px;
     height: 46px;
+  }
+
+  .logo-slot img {
+    max-width: 60px;
   }
 
   h1 {
