@@ -186,13 +186,15 @@ textarea:focus {
   box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.14);
 }
 
-.field-alert input {
+.field-alert input,
+.field-alert textarea {
   border-color: var(--coral);
   background: #fff5f4;
   box-shadow: 0 0 0 4px rgba(185, 64, 58, 0.18);
 }
 
-.field-alert input:focus {
+.field-alert input:focus,
+.field-alert textarea:focus {
   border-color: var(--coral);
   box-shadow: 0 0 0 4px rgba(185, 64, 58, 0.24);
 }

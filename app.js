@@ -362,6 +362,17 @@ function focusStepsField(measureId) {
   }, 60);
 }
 
+function focusNotesField() {
+  const field = notesInput.parentNode;
+  field.classList.add("field-alert");
+  notesInput.focus({ preventScroll: true });
+  notesInput.select();
+  window.setTimeout(() => {
+    notesInput.scrollIntoView({ behavior: "smooth", block: "center" });
+    notesInput.focus({ preventScroll: true });
+  }, 60);
+}
+
 function resetTimer(measureId) {
   const timer = getTimer(state.activeTimepoint, measureId);
   timer.elapsed = 0;
@@ -551,6 +562,7 @@ function bindEvents() {
 
   notesInput.addEventListener("input", () => {
     state.notes = notesInput.value;
+    notesInput.parentNode.classList.remove("field-alert");
     saveState();
     renderSummary();
   });
@@ -586,6 +598,13 @@ function bindEvents() {
   });
 
   measureList.addEventListener("input", handleValueInput);
+  measureList.addEventListener("change", (event) => {
+    const input = closestFieldInput(event.target);
+    if (!input) return;
+    if (input.dataset.field === "steps" && input.dataset.measure === "walkFast") {
+      focusNotesField();
+    }
+  });
   measureList.addEventListener("click", (event) => {
     const button = closestActionButton(event.target);
     if (!button) return;
