@@ -46,6 +46,11 @@ const notesInput = document.getElementById("qualitative-notes");
 const measureList = document.getElementById("measure-list");
 const currentTimepointLabel = document.getElementById("current-timepoint-label");
 const resetAllButton = document.getElementById("reset-all");
+const stopOverlay = document.getElementById("stop-overlay");
+const stopOverlayMeasure = document.getElementById("stop-overlay-measure");
+const stopOverlayTime = document.getElementById("stop-overlay-time");
+
+let overlayTimerKey = "";
 
 function eachNode(selector, callback) {
   const nodes = document.querySelectorAll(selector);
@@ -110,6 +115,7 @@ function resetState() {
     cancelAnimationFrame(timer.raf);
   });
   timerState.clear();
+  hideStopOverlay();
   saveState();
   participantInput.value = "";
   notesInput.value = "";
@@ -239,7 +245,11 @@ function updateTimerDisplay(timepointId, measureId) {
   if (!display) return;
 
   const timer = getTimer(timepointId, measureId);
-  display.textContent = formatTimer(currentTimerMs(timer));
+  const formatted = formatTimer(currentTimerMs(timer));
+  display.textContent = formatted;
+  if (overlayTimerKey === timerKey(timepointId, measureId) && stopOverlayTime) {
+    stopOverlayTime.textContent = formatted;
+  }
 
   if (timer.running) {
     timer.raf = requestAnimationFrame(() => updateTimerDisplay(timepointId, measureId));
@@ -251,16 +261,44 @@ function startTimer(measureId) {
   if (timer.running) return;
   timer.running = true;
   timer.startedAt = performance.now();
+  showStopOverlay(measureId);
   updateTimerDisplay(state.activeTimepoint, measureId);
+}
+
+function showStopOverlay(measureId) {
+  const measure = findMeasure(measureId);
+  overlayTimerKey = timerKey(state.activeTimepoint, measureId);
+  if (stopOverlayMeasure) {
+    stopOverlayMeasure.textContent = measure ? measure.label : "";
+  }
+  if (stopOverlayTime) {
+    stopOverlayTime.textContent = formatTimer(currentTimerMs(getTimer(state.activeTimepoint, measureId)));
+  }
+  if (stopOverlay) {
+    stopOverlay.classList.add("is-visible");
+  }
+}
+
+function hideStopOverlay() {
+  overlayTimerKey = "";
+  if (stopOverlay) {
+    stopOverlay.classList.remove("is-visible");
+  }
+}
+
+function stopTimer(measureId) {
+  const timer = getTimer(state.activeTimepoint, measureId);
+  timer.elapsed = currentTimerMs(timer);
+  timer.running = false;
+  cancelAnimationFrame(timer.raf);
+  hideStopOverlay();
+  renderMeasureList();
 }
 
 function toggleTimer(measureId) {
   const timer = getTimer(state.activeTimepoint, measureId);
   if (timer.running) {
-    timer.elapsed = currentTimerMs(timer);
-    timer.running = false;
-    cancelAnimationFrame(timer.raf);
-    renderMeasureList();
+    stopTimer(measureId);
     return;
   }
   startTimer(measureId);
@@ -278,6 +316,7 @@ function useTimer(measureId) {
   timer.elapsed = currentTimerMs(timer);
   timer.running = false;
   cancelAnimationFrame(timer.raf);
+  hideStopOverlay();
 
   const measure = findMeasure(measureId);
   const shouldFocusSteps = measure && measure.fields.includes("steps");
@@ -310,6 +349,9 @@ function resetTimer(measureId) {
   timer.startedAt = 0;
   timer.running = false;
   cancelAnimationFrame(timer.raf);
+  if (overlayTimerKey === timerKey(state.activeTimepoint, measureId)) {
+    hideStopOverlay();
+  }
   updateTimerDisplay(state.activeTimepoint, measureId);
 }
 
@@ -498,6 +540,16 @@ function bindEvents() {
     resetAllButton.addEventListener("click", () => {
       const confirmed = window.confirm("Tout effacer pour demarrer un nouveau patient ?");
       if (confirmed) resetState();
+    });
+  }
+
+  if (stopOverlay) {
+    stopOverlay.addEventListener("click", () => {
+      if (!overlayTimerKey) return;
+      const parts = overlayTimerKey.split(":");
+      if (parts[0] === state.activeTimepoint) {
+        stopTimer(parts[1]);
+      }
     });
   }
 

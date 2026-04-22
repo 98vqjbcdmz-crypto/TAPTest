@@ -344,6 +344,43 @@ textarea {
   font-variant-numeric: tabular-nums;
 }
 
+.stop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: none;
+  place-items: center;
+  align-content: center;
+  gap: 18px;
+  border: 0;
+  background: rgba(185, 64, 58, 0.96);
+  color: #fff;
+  text-align: center;
+  padding: 28px;
+}
+
+.stop-overlay.is-visible {
+  display: grid;
+}
+
+.stop-overlay-label {
+  font-size: clamp(3.4rem, 16vw, 8rem);
+  font-weight: 1000;
+  line-height: 0.95;
+}
+
+.stop-overlay-measure {
+  max-width: 92vw;
+  font-size: 1.2rem;
+  font-weight: 900;
+}
+
+.stop-overlay-time {
+  font-size: clamp(2.4rem, 11vw, 5rem);
+  font-weight: 1000;
+  font-variant-numeric: tabular-nums;
+}
+
 .timer-actions,
 .action-row {
   display: grid;
