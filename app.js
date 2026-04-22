@@ -130,8 +130,10 @@ function renderMeasureList() {
     card.dataset.measure = measure.id;
 
     const values = ensureMeasure(state.activeTimepoint, measure.id);
+    const timer = getTimer(state.activeTimepoint, measure.id);
     const time = numberValue(values.time);
     const speed = measure.distance && time ? measure.distance / time : null;
+    const toggleLabel = timer.running ? "Arreter" : "Demarrer";
 
     card.innerHTML = `
       <div class="measure-header">
@@ -159,9 +161,9 @@ function renderMeasureList() {
           ` : ""}
         </div>
         <div class="timer-box" data-timer="${measure.id}">
-          <div class="timer-display">${formatTimer(currentTimerMs(getTimer(state.activeTimepoint, measure.id)))}</div>
+          <div class="timer-display">${formatTimer(currentTimerMs(timer))}</div>
           <div class="timer-actions">
-            <button class="start-timer" type="button" data-action="start" data-measure="${measure.id}">Demarrer</button>
+            <button class="start-timer" type="button" data-action="toggle" data-measure="${measure.id}">${toggleLabel}</button>
             <button class="use-timer" type="button" data-action="use" data-measure="${measure.id}">Ajouter</button>
             <button class="reset-timer" type="button" data-action="reset" data-measure="${measure.id}">RAZ</button>
           </div>
@@ -193,6 +195,25 @@ function startTimer(measureId) {
   timer.running = true;
   timer.startedAt = performance.now();
   updateTimerDisplay(state.activeTimepoint, measureId);
+}
+
+function toggleTimer(measureId) {
+  const timer = getTimer(state.activeTimepoint, measureId);
+  if (timer.running) {
+    timer.elapsed = currentTimerMs(timer);
+    timer.running = false;
+    cancelAnimationFrame(timer.raf);
+    renderMeasureList();
+    return;
+  }
+  startTimer(measureId);
+  renderTimerButton(measureId);
+}
+
+function renderTimerButton(measureId) {
+  const timer = getTimer(state.activeTimepoint, measureId);
+  const button = document.querySelector(`[data-action="toggle"][data-measure="${measureId}"]`);
+  if (button) button.textContent = timer.running ? "Arreter" : "Demarrer";
 }
 
 function useTimer(measureId) {
@@ -465,7 +486,7 @@ function bindEvents() {
     const button = event.target.closest("[data-action]");
     if (!button) return;
 
-    if (button.dataset.action === "start") startTimer(button.dataset.measure);
+    if (button.dataset.action === "toggle") toggleTimer(button.dataset.measure);
     if (button.dataset.action === "use") useTimer(button.dataset.measure);
     if (button.dataset.action === "reset") resetTimer(button.dataset.measure);
   });
