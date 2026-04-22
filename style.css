@@ -128,13 +128,25 @@ h2 {
 
 .identity-band {
   display: grid;
-  grid-template-columns: 1fr minmax(132px, 42%);
+  grid-template-columns: 1fr minmax(132px, 34%) auto;
   gap: 12px;
   align-items: end;
   padding: 14px;
   background: var(--surface);
   border: 1px solid var(--line);
   box-shadow: var(--shadow);
+}
+
+.reset-all {
+  min-height: 43px;
+  border: 1px solid #f0c4c0;
+  border-radius: 6px;
+  background: #fff1f0;
+  color: var(--coral);
+  padding: 9px 11px;
+  font-size: 0.82rem;
+  font-weight: 900;
+  white-space: nowrap;
 }
 
 .field {
@@ -413,6 +425,10 @@ textarea {
 
   .identity-band {
     grid-template-columns: 1fr;
+  }
+
+  .reset-all {
+    width: 100%;
   }
 
   .timepoint-button {

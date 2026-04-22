@@ -45,6 +45,7 @@ const participantInput = document.getElementById("participant-id");
 const notesInput = document.getElementById("qualitative-notes");
 const measureList = document.getElementById("measure-list");
 const currentTimepointLabel = document.getElementById("current-timepoint-label");
+const resetAllButton = document.getElementById("reset-all");
 
 function loadState() {
   try {
@@ -61,6 +62,20 @@ function freshDefaultState() {
 
 function saveState() {
   localStorage.setItem("tap-evaluation", JSON.stringify(state));
+}
+
+function resetState() {
+  Object.assign(state, freshDefaultState());
+  timerState.forEach((timer) => {
+    timer.running = false;
+    cancelAnimationFrame(timer.raf);
+  });
+  timerState.clear();
+  saveState();
+  participantInput.value = "";
+  notesInput.value = "";
+  renderTimepointButtons();
+  renderMeasureList();
 }
 
 function ensureMeasure(timepointId, measureId) {
@@ -409,6 +424,11 @@ function bindEvents() {
     state.notes = notesInput.value;
     saveState();
     renderSummary();
+  });
+
+  resetAllButton.addEventListener("click", () => {
+    const confirmed = window.confirm("Tout effacer pour demarrer un nouveau patient ?");
+    if (confirmed) resetState();
   });
 
   document.querySelectorAll(".timepoint-button").forEach((button) => {
