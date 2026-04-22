@@ -398,6 +398,14 @@ textarea {
   gap: 8px;
 }
 
+.timer-actions.is-ready {
+  grid-template-columns: 1fr;
+}
+
+.timer-actions.is-post-stop {
+  grid-template-columns: repeat(2, 1fr);
+}
+
 .timer-actions button,
 .action-row button {
   min-height: 44px;

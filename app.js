@@ -168,6 +168,7 @@ function getTimer(timepointId, measureId) {
       elapsed: 0,
       startedAt: 0,
       running: false,
+      stopped: false,
       raf: null,
     });
   }
@@ -198,7 +199,13 @@ function renderMeasureList() {
     const timer = getTimer(state.activeTimepoint, measure.id);
     const time = numberValue(values.time);
     const speed = measure.distance && time ? measure.distance / time : null;
-    const toggleLabel = timer.running ? "Arreter" : "Armer";
+    const actionClass = timer.stopped ? "timer-actions is-post-stop" : "timer-actions is-ready";
+    const timerActions = timer.stopped ? `
+      <button class="use-timer" type="button" data-action="use" data-measure="${measure.id}">Ajouter</button>
+      <button class="reset-timer" type="button" data-action="reset" data-measure="${measure.id}">RAZ</button>
+    ` : `
+      <button class="start-timer" type="button" data-action="toggle" data-measure="${measure.id}">Armer</button>
+    `;
 
     card.innerHTML = `
       <div class="measure-header">
@@ -227,10 +234,8 @@ function renderMeasureList() {
         </div>
         <div class="timer-box" data-timer="${measure.id}">
           <div class="timer-display">${formatTimer(currentTimerMs(timer))}</div>
-          <div class="timer-actions">
-            <button class="start-timer" type="button" data-action="toggle" data-measure="${measure.id}">${toggleLabel}</button>
-            <button class="use-timer" type="button" data-action="use" data-measure="${measure.id}">Ajouter</button>
-            <button class="reset-timer" type="button" data-action="reset" data-measure="${measure.id}">RAZ</button>
+          <div class="${actionClass}">
+            ${timerActions}
           </div>
         </div>
       </div>
@@ -262,6 +267,7 @@ function startTimer(measureId) {
   const timer = getTimer(state.activeTimepoint, measureId);
   if (timer.running) return;
   timer.running = true;
+  timer.stopped = false;
   timer.startedAt = performance.now();
   showRunningOverlay(measureId);
   updateTimerDisplay(state.activeTimepoint, measureId);
@@ -309,6 +315,7 @@ function stopTimer(measureId) {
   const timer = getTimer(state.activeTimepoint, measureId);
   timer.elapsed = currentTimerMs(timer);
   timer.running = false;
+  timer.stopped = true;
   cancelAnimationFrame(timer.raf);
   hideStopOverlay();
   renderMeasureList();
@@ -334,6 +341,7 @@ function useTimer(measureId) {
   const timer = getTimer(state.activeTimepoint, measureId);
   timer.elapsed = currentTimerMs(timer);
   timer.running = false;
+  timer.stopped = true;
   cancelAnimationFrame(timer.raf);
   hideStopOverlay();
 
@@ -378,11 +386,12 @@ function resetTimer(measureId) {
   timer.elapsed = 0;
   timer.startedAt = 0;
   timer.running = false;
+  timer.stopped = false;
   cancelAnimationFrame(timer.raf);
   if (overlayTimerKey === timerKey(state.activeTimepoint, measureId)) {
     hideStopOverlay();
   }
-  updateTimerDisplay(state.activeTimepoint, measureId);
+  renderMeasureList();
 }
 
 function handleValueInput(event) {
