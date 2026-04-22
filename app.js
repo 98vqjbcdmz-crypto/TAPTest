@@ -280,24 +280,26 @@ function useTimer(measureId) {
   cancelAnimationFrame(timer.raf);
 
   const measure = findMeasure(measureId);
+  const shouldFocusSteps = measure && measure.fields.includes("steps");
   const values = ensureMeasure(state.activeTimepoint, measureId);
   values.time = (timer.elapsed / 1000).toFixed(2);
   saveState();
   renderMeasureList();
-  if (measure && measure.fields.includes("steps")) {
+  if (shouldFocusSteps) {
     focusStepsField(measureId);
   }
   renderSummary();
 }
 
 function focusStepsField(measureId) {
-  requestAnimationFrame(() => {
-    const input = document.querySelector(`[data-field="steps"][data-measure="${measureId}"]`);
-    if (!input) return;
+  const input = document.querySelector(`[data-field="steps"][data-measure="${measureId}"]`);
+  if (!input) return;
+  input.focus({ preventScroll: true });
+  input.select();
+  window.setTimeout(() => {
     input.scrollIntoView({ behavior: "smooth", block: "center" });
-    input.focus();
-    input.select();
-  });
+    input.focus({ preventScroll: true });
+  }, 60);
 }
 
 function resetTimer(measureId) {
