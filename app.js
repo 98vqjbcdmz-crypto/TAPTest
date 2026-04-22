@@ -235,11 +235,25 @@ function useTimer(measureId) {
   timer.running = false;
   cancelAnimationFrame(timer.raf);
 
+  const measure = measures.find((item) => item.id === measureId);
   const values = ensureMeasure(state.activeTimepoint, measureId);
   values.time = (timer.elapsed / 1000).toFixed(2);
   saveState();
   renderMeasureList();
+  if (measure?.fields.includes("steps")) {
+    focusStepsField(measureId);
+  }
   renderSummary();
+}
+
+function focusStepsField(measureId) {
+  requestAnimationFrame(() => {
+    const input = document.querySelector(`[data-field="steps"][data-measure="${measureId}"]`);
+    if (!input) return;
+    input.scrollIntoView({ behavior: "smooth", block: "center" });
+    input.focus();
+    input.select();
+  });
 }
 
 function resetTimer(measureId) {
