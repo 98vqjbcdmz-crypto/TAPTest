@@ -12,6 +12,7 @@ const tapMeasures = [
     badge: "Temps",
     instruction: "Test standardise habituel.",
     fields: ["time"],
+    distance: null,
   },
   {
     id: "walkUsual",
@@ -32,84 +33,85 @@ const tapMeasures = [
 ];
 
 const simpleMeasures = [
+  { id: "usual1", type: "walk", category: "usual", fields: ["time", "steps"] },
+  { id: "usual2", type: "walk", category: "usual", fields: ["time", "steps"] },
+  { id: "usual3", type: "walk", category: "usual", fields: ["time", "steps"] },
+  { id: "fast1", type: "walk", category: "fast", fields: ["time", "steps"] },
+  { id: "fast2", type: "walk", category: "fast", fields: ["time", "steps"] },
+  { id: "fast3", type: "walk", category: "fast", fields: ["time", "steps"] },
+  { id: "dtUsual1", type: "walk", category: "dtUsual", fields: ["time", "steps"] },
+  { id: "dtUsual2", type: "walk", category: "dtUsual", fields: ["time", "steps"] },
+  { id: "dtFast1", type: "walk", category: "dtFast", fields: ["time", "steps"] },
+  { id: "dtFast2", type: "walk", category: "dtFast", fields: ["time", "steps"] },
   {
-    id: "launchedUsual",
-    label: "Marche lancee - usuelle",
-    badge: "Vitesse",
-    instruction: "Lancer la marche avant la ligne, puis chronometrer uniquement la distance mesuree.",
-    fields: ["time", "steps"],
-    useSimpleDistance: true,
-  },
-  {
-    id: "launchedFast",
-    label: "Marche lancee - rapide",
-    badge: "Vitesse",
-    instruction: "Meme installation, a vitesse rapide securisee, sans courir.",
-    fields: ["time", "steps"],
-    useSimpleDistance: true,
-  },
-  {
-    id: "chair5",
-    label: "5 levees de chaise",
-    badge: "SPPB",
-    instruction: "Bras croises si possible. Chronometrer 5 levers-assis complets.",
+    id: "simpleTug",
+    type: "tug",
+    category: "tug",
+    label: "TUG",
+    badge: "Temps",
+    instruction: "Timed Up and Go ponctuel avec chronometrage arme.",
     fields: ["time"],
-  },
-  {
-    id: "balanceFeetTogether",
-    label: "Equilibre - pieds joints",
-    badge: "10 s",
-    instruction: "Position pieds joints, maintien maximal 10 secondes.",
-    fields: ["time"],
-    maxTime: 10,
-  },
-  {
-    id: "balanceSemiTandem",
-    label: "Equilibre - semi-tandem",
-    badge: "10 s",
-    instruction: "Position semi-tandem, maintien maximal 10 secondes.",
-    fields: ["time"],
-    maxTime: 10,
-  },
-  {
-    id: "balanceTandem",
-    label: "Equilibre - tandem",
-    badge: "10 s",
-    instruction: "Position tandem, maintien maximal 10 secondes.",
-    fields: ["time"],
-    maxTime: 10,
   },
 ];
 
-const allMeasures = tapMeasures.concat(simpleMeasures);
+const dualTaskBank = [
+  "Compter de 2 en 2",
+  "Compter a rebours depuis 50",
+  "Mois de l'annee a l'envers",
+  "Jours de la semaine a l'envers",
+  "Animaux par categorie",
+  "Fruits par categorie",
+  "Nommer des villes",
+  "Epeler un mot a l'envers",
+];
 
 const defaultState = {
   participantId: "",
   activeMode: "tap",
   activeTimepoint: "before",
   notes: "",
-  simpleNotes: "",
-  simpleDistance: "4",
   values: {},
+  simpleDistance: "4",
+  simpleDtSource: dualTaskBank.join("\n"),
+  simpleNotes: "",
   simpleValues: {},
+  simpleProtocol: null,
+  simpleClinical: {
+    parachuteAnt: "",
+    parachutePost: "",
+    unipodalLeft: "",
+    unipodalRight: "",
+    painBefore: "",
+    painAfter: "",
+    painNotes: "",
+  },
 };
-
-const state = loadState();
-const timerState = new Map();
 
 const participantInput = document.getElementById("participant-id");
 const notesInput = document.getElementById("qualitative-notes");
 const simpleNotesInput = document.getElementById("simple-notes");
 const simpleDistanceInput = document.getElementById("simple-walk-distance");
+const simpleDtSourceInput = document.getElementById("simple-dt-source");
+const simpleRandomizeButton = document.getElementById("simple-randomize");
 const measureList = document.getElementById("measure-list");
 const simpleMeasureList = document.getElementById("simple-measure-list");
-const simpleScorePanel = document.getElementById("simple-score-panel");
+const simpleExtraList = document.getElementById("simple-extra-list");
+const simpleRandomSummary = document.getElementById("simple-random-summary");
 const currentTimepointLabel = document.getElementById("current-timepoint-label");
 const resetAllButton = document.getElementById("reset-all");
 const stopOverlay = document.getElementById("stop-overlay");
 const stopOverlayLabel = document.getElementById("stop-overlay-label");
 const stopOverlayMeasure = document.getElementById("stop-overlay-measure");
 const stopOverlayTime = document.getElementById("stop-overlay-time");
+const parachuteButtons = document.querySelectorAll("[data-choice-group]");
+const unipodalLeftInput = document.getElementById("simple-unipodal-left");
+const unipodalRightInput = document.getElementById("simple-unipodal-right");
+const painBeforeInput = document.getElementById("simple-pain-before");
+const painAfterInput = document.getElementById("simple-pain-after");
+const painNotesInput = document.getElementById("simple-pain-notes");
+
+const state = loadState();
+const timerState = new Map();
 
 let overlayTimerScope = "";
 let overlayTimerMeasure = "";
@@ -122,6 +124,88 @@ function eachNode(selector, callback) {
   }
 }
 
+function shuffleArray(items) {
+  const copy = items.slice();
+  for (let index = copy.length - 1; index > 0; index -= 1) {
+    const other = Math.floor(Math.random() * (index + 1));
+    const saved = copy[index];
+    copy[index] = copy[other];
+    copy[other] = saved;
+  }
+  return copy;
+}
+
+function buildSimpleProtocol(source) {
+  const walkIds = [
+    "usual1", "usual2", "usual3",
+    "fast1", "fast2", "fast3",
+    "dtUsual1", "dtUsual2",
+    "dtFast1", "dtFast2",
+  ];
+  const dualTasks = shuffleArray(dualTaskPool(source)).slice(0, 4);
+  return {
+    order: shuffleArray(walkIds),
+    dtLabels: {
+      dtUsual1: dualTasks[0] || "",
+      dtUsual2: dualTasks[1] || "",
+      dtFast1: dualTasks[2] || "",
+      dtFast2: dualTasks[3] || "",
+    },
+  };
+}
+
+function dualTaskPool(source) {
+  const text = String(source || "");
+  const lines = text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const unique = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    if (unique.indexOf(lines[index]) < 0) unique.push(lines[index]);
+  }
+  if (unique.length >= 4) return unique;
+  return dualTaskBank.slice();
+}
+
+function normalizeState(candidate) {
+  const normalized = Object.assign(freshDefaultState(), candidate || {});
+  if (!normalized.values || typeof normalized.values !== "object") normalized.values = {};
+  if (!normalized.simpleValues || typeof normalized.simpleValues !== "object") normalized.simpleValues = {};
+  if (typeof normalized.simpleDtSource !== "string" || !normalized.simpleDtSource.trim()) {
+    normalized.simpleDtSource = dualTaskBank.join("\n");
+  }
+  const hasValidProtocol = normalized.simpleProtocol
+    && Array.isArray(normalized.simpleProtocol.order)
+    && normalized.simpleProtocol.order.length === 10
+    && normalized.simpleProtocol.dtLabels
+    && typeof normalized.simpleProtocol.dtLabels === "object";
+  if (!hasValidProtocol) {
+    normalized.simpleProtocol = buildSimpleProtocol(normalized.simpleDtSource);
+  }
+  if (!normalized.simpleClinical || typeof normalized.simpleClinical !== "object") {
+    normalized.simpleClinical = freshDefaultState().simpleClinical;
+  }
+  return normalized;
+}
+
+function loadState() {
+  try {
+    const saved = JSON.parse(localStorage.getItem("tap-evaluation") || "null");
+    return normalizeState(saved);
+  } catch {
+    return normalizeState(null);
+  }
+}
+
+function freshDefaultState() {
+  return JSON.parse(JSON.stringify(defaultState));
+}
+
+function saveState() {
+  localStorage.setItem("tap-evaluation", JSON.stringify(state));
+}
+
 function findTimepoint(timepointId) {
   for (let index = 0; index < timepoints.length; index += 1) {
     if (timepoints[index].id === timepointId) return timepoints[index];
@@ -130,6 +214,7 @@ function findTimepoint(timepointId) {
 }
 
 function findMeasure(measureId) {
+  const allMeasures = tapMeasures.concat(simpleMeasures);
   for (let index = 0; index < allMeasures.length; index += 1) {
     if (allMeasures[index].id === measureId) return allMeasures[index];
   }
@@ -154,79 +239,21 @@ function closestFieldInput(element) {
   return null;
 }
 
-function loadState() {
-  try {
-    const saved = JSON.parse(localStorage.getItem("tap-evaluation") || "null");
-    return normalizeState(saved ? Object.assign(freshDefaultState(), saved) : freshDefaultState());
-  } catch {
-    return freshDefaultState();
-  }
-}
-
-function normalizeState(candidate) {
-  const normalized = Object.assign(freshDefaultState(), candidate || {});
-  if (!normalized.values || typeof normalized.values !== "object") normalized.values = {};
-  if (!normalized.simpleValues || typeof normalized.simpleValues !== "object") normalized.simpleValues = {};
-  if (!normalized.activeMode) normalized.activeMode = "tap";
-  if (!normalized.activeTimepoint) normalized.activeTimepoint = "before";
-  if (!normalized.simpleDistance) normalized.simpleDistance = "4";
-  if (typeof normalized.simpleNotes !== "string") normalized.simpleNotes = "";
-  return normalized;
-}
-
-function freshDefaultState() {
-  return JSON.parse(JSON.stringify(defaultState));
-}
-
-function saveState() {
-  localStorage.setItem("tap-evaluation", JSON.stringify(state));
-}
-
-function resetState() {
-  Object.assign(state, freshDefaultState());
-  timerState.forEach((timer) => {
-    timer.running = false;
-    cancelAnimationFrame(timer.raf);
-  });
-  timerState.clear();
-  hideStopOverlay();
-  saveState();
-  participantInput.value = "";
-  notesInput.value = "";
-  simpleNotesInput.value = "";
-  simpleDistanceInput.value = state.simpleDistance;
-  renderModeTabs();
-  renderTimepointButtons();
-  renderMeasureList();
-  renderSimpleMeasureList();
-}
-
-function ensureMeasure(timepointId, measureId) {
-  if (!state.values[timepointId]) {
-    state.values[timepointId] = {};
-  }
-  if (!state.values[timepointId][measureId]) {
-    state.values[timepointId][measureId] = {};
-  }
+function ensureTapMeasure(timepointId, measureId) {
+  if (!state.values[timepointId]) state.values[timepointId] = {};
+  if (!state.values[timepointId][measureId]) state.values[timepointId][measureId] = {};
   return state.values[timepointId][measureId];
 }
 
 function ensureSimpleMeasure(measureId) {
-  if (!state.simpleValues[measureId]) {
-    state.simpleValues[measureId] = {};
-  }
+  if (!state.simpleValues[measureId]) state.simpleValues[measureId] = {};
   return state.simpleValues[measureId];
 }
 
 function valuesFor(scope, measureId) {
   return scope === "simple"
     ? ensureSimpleMeasure(measureId)
-    : ensureMeasure(state.activeTimepoint, measureId);
-}
-
-function numberValue(value) {
-  const parsed = Number.parseFloat(String(value).replace(",", "."));
-  return Number.isFinite(parsed) ? parsed : null;
+    : ensureTapMeasure(state.activeTimepoint, measureId);
 }
 
 function simpleDistance() {
@@ -234,17 +261,25 @@ function simpleDistance() {
   return parsed && parsed > 0 ? parsed : 4;
 }
 
-function distanceFor(measure) {
+function distanceFor(scope, measure) {
   if (!measure) return null;
-  if (measure.useSimpleDistance) return simpleDistance();
-  return measure.distance || null;
+  if (scope === "tap") return measure.distance || null;
+  if (measure.type === "walk") return simpleDistance();
+  return null;
 }
 
-function formatNumber(value, digits = 2) {
-  if (!Number.isFinite(value)) return "Non renseigne";
+function numberValue(value) {
+  const parsed = Number.parseFloat(String(value).replace(",", "."));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function formatNumber(value, digits) {
+  const minDigits = typeof digits === "number" ? digits : 2;
+  const maxDigits = typeof digits === "number" ? digits : 2;
+  if (!Number.isFinite(value)) return "";
   return new Intl.NumberFormat("fr-FR", {
-    minimumFractionDigits: digits,
-    maximumFractionDigits: digits,
+    minimumFractionDigits: minDigits,
+    maximumFractionDigits: maxDigits,
   }).format(value);
 }
 
@@ -296,137 +331,185 @@ function renderTimepointButtons() {
   eachNode(".timepoint-button", (button) => {
     button.classList.toggle("is-active", button.dataset.timepoint === state.activeTimepoint);
   });
-  const timepoint = findTimepoint(state.activeTimepoint);
-  currentTimepointLabel.textContent = timepoint.label;
+  currentTimepointLabel.textContent = findTimepoint(state.activeTimepoint).label;
 }
 
-function renderMeasureList() {
-  measureList.innerHTML = "";
-
-  tapMeasures.forEach((measure) => {
-    measureList.append(renderMeasureCard("tap", measure));
-    updateTimerDisplay("tap", measure.id);
-  });
+function simpleMeasurePresentation(measureId, orderIndex) {
+  const measure = findMeasure(measureId);
+  const labelMap = {
+    usual: "Marche lancee usuelle",
+    fast: "Marche lancee rapide",
+    dtUsual: "Double tache usuelle",
+    dtFast: "Double tache rapide",
+  };
+  if (measure && measure.type === "tug") {
+    return {
+      title: measure.label,
+      badge: measure.badge,
+      instruction: measure.instruction,
+    };
+  }
+  const dtLabels = state.simpleProtocol && state.simpleProtocol.dtLabels ? state.simpleProtocol.dtLabels : {};
+  const dtLabel = dtLabels[measureId];
+  const category = measure ? measure.category : "";
+  const titleCore = labelMap[category] || "Mesure";
+  const title = `${orderIndex}. ${titleCore}`;
+  const instruction = dtLabel
+    ? `Consigne de double tache : ${dtLabel}.`
+    : "Chronometrer uniquement la distance mesuree, en marche lancee.";
+  const badge = category.indexOf("dt") === 0 ? "DT" : "Vitesse";
+  return { title, badge, instruction };
 }
 
-function renderSimpleMeasureList() {
-  simpleMeasureList.innerHTML = "";
-
-  simpleMeasures.forEach((measure) => {
-    simpleMeasureList.append(renderMeasureCard("simple", measure));
-    updateTimerDisplay("simple", measure.id);
-  });
-
-  renderSimpleScorePanel();
-}
-
-function renderMeasureCard(scope, measure) {
-  const card = document.createElement("article");
-  card.className = "measure-card";
-  card.dataset.measure = measure.id;
-  card.dataset.scope = scope;
-
-  const values = valuesFor(scope, measure.id);
-  const timer = getTimer(scope, measure.id);
+function renderMeasureCard(scope, measureId, orderIndex) {
+  const measure = findMeasure(measureId);
+  const values = valuesFor(scope, measureId);
+  const timer = getTimer(scope, measureId);
+  const distance = distanceFor(scope, measure);
   const time = numberValue(values.time);
-  const distance = distanceFor(measure);
   const speed = distance && time ? distance / time : null;
   const actionClass = timer.stopped ? "timer-actions is-post-stop" : "timer-actions is-ready";
-  const timerActions = timer.stopped ? `
-    <button class="use-timer" type="button" data-action="use" data-scope="${scope}" data-measure="${measure.id}">Ajouter</button>
-    <button class="reset-timer" type="button" data-action="reset" data-scope="${scope}" data-measure="${measure.id}">RAZ</button>
+  const actions = timer.stopped ? `
+    <button class="use-timer" type="button" data-action="use" data-scope="${scope}" data-measure="${measureId}">Ajouter</button>
+    <button class="reset-timer" type="button" data-action="reset" data-scope="${scope}" data-measure="${measureId}">RAZ</button>
   ` : `
-    <button class="start-timer" type="button" data-action="toggle" data-scope="${scope}" data-measure="${measure.id}">Armer</button>
+    <button class="start-timer" type="button" data-action="toggle" data-scope="${scope}" data-measure="${measureId}">Armer</button>
   `;
+  const presentation = scope === "simple"
+    ? simpleMeasurePresentation(measureId, orderIndex)
+    : { title: measure.label, badge: measure.badge, instruction: measure.instruction };
 
+  const card = document.createElement("article");
+  card.className = "measure-card";
+  card.dataset.scope = scope;
+  card.dataset.measure = measureId;
   card.innerHTML = `
     <div class="measure-header">
       <div class="measure-title-row">
-        <h3>${measure.label}</h3>
-        <span class="measure-badge">${measure.badge}</span>
+        <h3>${presentation.title}</h3>
+        <span class="measure-badge">${presentation.badge}</span>
       </div>
-      <p>${measure.instruction}</p>
+      <p>${presentation.instruction}</p>
     </div>
     <div class="measure-body">
       <div class="field-grid">
         <label class="field">
           <span>Temps (s)</span>
-          <input data-field="time" data-scope="${scope}" data-measure="${measure.id}" type="number" min="0" step="0.01" inputmode="decimal" value="${values.time || ""}" placeholder="0,00" />
+          <input data-field="time" data-scope="${scope}" data-measure="${measureId}" type="number" min="0" step="0.01" inputmode="decimal" value="${values.time || ""}" placeholder="0,00" />
         </label>
-        ${measure.fields.includes("steps") ? `
+        ${measure.fields.indexOf("steps") >= 0 ? `
           <label class="field">
             <span>Nombre de pas</span>
-            <input data-field="steps" data-scope="${scope}" data-measure="${measure.id}" type="number" min="0" step="1" inputmode="numeric" value="${values.steps || ""}" placeholder="0" />
+            <input data-field="steps" data-scope="${scope}" data-measure="${measureId}" type="number" min="0" step="1" inputmode="numeric" value="${values.steps || ""}" placeholder="0" />
           </label>
           <div class="computed wide">
             <span>Vitesse calculee</span>
-            <strong>${speed ? `${formatNumber(speed)} m/s` : "Non renseignee"}</strong>
-          </div>
-        ` : ""}
-        ${measure.maxTime ? `
-          <div class="computed wide">
-            <span>Maintien cible</span>
-            <strong>${time ? `${formatNumber(Math.min(time, measure.maxTime), 1)} / ${measure.maxTime} s` : "Non renseigne"}</strong>
+            <strong>${speed ? `${formatNumber(speed, 2)} m/s` : "Non renseignee"}</strong>
           </div>
         ` : ""}
       </div>
-      <div class="timer-box" data-timer-scope="${scope}" data-timer="${measure.id}">
+      <div class="timer-box" data-timer-scope="${scope}" data-timer="${measureId}">
         <div class="timer-display">${formatTimer(currentTimerMs(timer))}</div>
         <div class="${actionClass}">
-          ${timerActions}
+          ${actions}
         </div>
       </div>
     </div>
   `;
-
   return card;
+}
+
+function renderTapMeasureList() {
+  measureList.innerHTML = "";
+  for (let index = 0; index < tapMeasures.length; index += 1) {
+    const measure = tapMeasures[index];
+    measureList.append(renderMeasureCard("tap", measure.id, index + 1));
+    updateTimerDisplay("tap", measure.id);
+  }
+}
+
+function renderSimpleProtocolSummary() {
+  const order = state.simpleProtocol.order || [];
+  const titles = [];
+  for (let index = 0; index < order.length; index += 1) {
+    titles.push(simpleMeasurePresentation(order[index], index + 1).title);
+  }
+  const dtRows = [];
+  const dtLabels = state.simpleProtocol && state.simpleProtocol.dtLabels ? state.simpleProtocol.dtLabels : {};
+  const keys = [
+    { id: "dtUsual1", label: "DT usuelle 1" },
+    { id: "dtUsual2", label: "DT usuelle 2" },
+    { id: "dtFast1", label: "DT rapide 1" },
+    { id: "dtFast2", label: "DT rapide 2" },
+  ];
+  for (let index = 0; index < keys.length; index += 1) {
+    const key = keys[index];
+    dtRows.push(`${key.label} : ${dtLabels[key.id] || ""}`);
+  }
+  simpleRandomSummary.innerHTML = `
+    <strong>Ordre aleatoire des 10 releves actif</strong>
+    <span>${titles.join(" -> ")}</span>
+    <span>Double tache tiree au sort : ${dtRows.join(" | ")}</span>
+  `;
+}
+
+function renderSimpleMeasureList() {
+  simpleMeasureList.innerHTML = "";
+  simpleExtraList.innerHTML = "";
+  renderSimpleProtocolSummary();
+
+  const order = state.simpleProtocol.order || [];
+  for (let index = 0; index < order.length; index += 1) {
+    simpleMeasureList.append(renderMeasureCard("simple", order[index], index + 1));
+    updateTimerDisplay("simple", order[index]);
+  }
+
+  simpleExtraList.append(renderMeasureCard("simple", "simpleTug", 0));
+  updateTimerDisplay("simple", "simpleTug");
+  renderSimpleClinical();
+}
+
+function renderSimpleClinical() {
+  const clinical = state.simpleClinical;
+  if (simpleDtSourceInput && document.activeElement !== simpleDtSourceInput) simpleDtSourceInput.value = state.simpleDtSource || "";
+  if (unipodalLeftInput && document.activeElement !== unipodalLeftInput) unipodalLeftInput.value = clinical.unipodalLeft || "";
+  if (unipodalRightInput && document.activeElement !== unipodalRightInput) unipodalRightInput.value = clinical.unipodalRight || "";
+  if (painBeforeInput && document.activeElement !== painBeforeInput) painBeforeInput.value = clinical.painBefore || "";
+  if (painAfterInput && document.activeElement !== painAfterInput) painAfterInput.value = clinical.painAfter || "";
+  if (painNotesInput && document.activeElement !== painNotesInput) painNotesInput.value = clinical.painNotes || "";
+  eachNode(".choice-button", (button) => {
+    const group = button.dataset.choiceGroup;
+    button.classList.toggle("is-active", clinical[group] === button.dataset.choiceValue);
+  });
 }
 
 function updateTimerDisplay(scope, measureId) {
   const display = document.querySelector(`[data-timer-scope="${scope}"][data-timer="${measureId}"] .timer-display`);
   if (!display) return;
-
   const timer = getTimer(scope, measureId);
   const formatted = formatTimer(currentTimerMs(timer));
   display.textContent = formatted;
   if (overlayTimerScope === scope && overlayTimerMeasure === measureId && stopOverlayTime) {
     stopOverlayTime.textContent = formatted;
   }
-
   if (timer.running) {
     timer.raf = requestAnimationFrame(() => updateTimerDisplay(scope, measureId));
   }
 }
 
-function startTimer(scope, measureId) {
-  const timer = getTimer(scope, measureId);
-  if (timer.running) return;
-  timer.running = true;
-  timer.stopped = false;
-  timer.startedAt = performance.now();
-  showRunningOverlay(scope, measureId);
-  updateTimerDisplay(scope, measureId);
-}
-
 function showOverlay(scope, measureId, mode) {
-  const measure = findMeasure(measureId);
+  const presentation = scope === "simple"
+    ? simpleMeasurePresentation(measureId, 0)
+    : { title: findMeasure(measureId).label };
   overlayTimerScope = scope;
   overlayTimerMeasure = measureId;
   overlayMode = mode;
-  if (stopOverlayLabel) {
-    stopOverlayLabel.textContent = mode === "armed" ? "DEMARRER" : "ARRETER";
-  }
-  if (stopOverlayMeasure) {
-    stopOverlayMeasure.textContent = measure ? measure.label : "";
-  }
-  if (stopOverlayTime) {
-    stopOverlayTime.textContent = formatTimer(currentTimerMs(getTimer(scope, measureId)));
-  }
-  if (stopOverlay) {
-    stopOverlay.classList.toggle("is-armed", mode === "armed");
-    stopOverlay.classList.toggle("is-running", mode === "running");
-    stopOverlay.classList.add("is-visible");
-  }
+  stopOverlayLabel.textContent = mode === "armed" ? "DEMARRER" : "ARRETER";
+  stopOverlayMeasure.textContent = presentation.title;
+  stopOverlayTime.textContent = formatTimer(currentTimerMs(getTimer(scope, measureId)));
+  stopOverlay.classList.toggle("is-armed", mode === "armed");
+  stopOverlay.classList.toggle("is-running", mode === "running");
+  stopOverlay.classList.add("is-visible");
 }
 
 function showArmedOverlay(scope, measureId) {
@@ -441,11 +524,19 @@ function hideStopOverlay() {
   overlayTimerScope = "";
   overlayTimerMeasure = "";
   overlayMode = "";
-  if (stopOverlay) {
-    stopOverlay.classList.remove("is-visible");
-    stopOverlay.classList.remove("is-armed");
-    stopOverlay.classList.remove("is-running");
-  }
+  stopOverlay.classList.remove("is-visible");
+  stopOverlay.classList.remove("is-armed");
+  stopOverlay.classList.remove("is-running");
+}
+
+function startTimer(scope, measureId) {
+  const timer = getTimer(scope, measureId);
+  if (timer.running) return;
+  timer.running = true;
+  timer.stopped = false;
+  timer.startedAt = performance.now();
+  showRunningOverlay(scope, measureId);
+  updateTimerDisplay(scope, measureId);
 }
 
 function stopTimer(scope, measureId) {
@@ -456,7 +547,7 @@ function stopTimer(scope, measureId) {
   cancelAnimationFrame(timer.raf);
   hideStopOverlay();
   if (scope === "simple") renderSimpleMeasureList();
-  else renderMeasureList();
+  else renderTapMeasureList();
 }
 
 function toggleTimer(scope, measureId) {
@@ -468,36 +559,12 @@ function toggleTimer(scope, measureId) {
   showArmedOverlay(scope, measureId);
 }
 
-function useTimer(scope, measureId) {
-  const timer = getTimer(scope, measureId);
-  timer.elapsed = currentTimerMs(timer);
-  timer.running = false;
-  timer.stopped = true;
-  cancelAnimationFrame(timer.raf);
-  hideStopOverlay();
-
-  const measure = findMeasure(measureId);
-  const shouldFocusSteps = measure && measure.fields.includes("steps");
-  const values = valuesFor(scope, measureId);
-  values.time = (timer.elapsed / 1000).toFixed(2);
-  saveState();
-
-  if (scope === "simple") renderSimpleMeasureList();
-  else renderMeasureList();
-
-  if (shouldFocusSteps) {
-    focusStepsField(scope, measureId);
-  }
-  renderSummary();
-}
-
-function focusStepsField(scope, measureId) {
-  const input = document.querySelector(`[data-field="steps"][data-scope="${scope}"][data-measure="${measureId}"]`);
+function focusFieldAlert(input) {
   if (!input) return;
   const field = input.parentNode;
   field.classList.add("field-alert");
   input.focus({ preventScroll: true });
-  input.select();
+  if (typeof input.select === "function") input.select();
   window.setTimeout(() => {
     input.scrollIntoView({ behavior: "smooth", block: "center" });
     input.focus({ preventScroll: true });
@@ -505,15 +572,26 @@ function focusStepsField(scope, measureId) {
 }
 
 function focusNotesField(scope) {
-  const notes = scope === "simple" ? simpleNotesInput : notesInput;
-  const field = notes.parentNode;
-  field.classList.add("field-alert");
-  notes.focus({ preventScroll: true });
-  notes.select();
-  window.setTimeout(() => {
-    notes.scrollIntoView({ behavior: "smooth", block: "center" });
-    notes.focus({ preventScroll: true });
-  }, 60);
+  focusFieldAlert(scope === "simple" ? simpleNotesInput : notesInput);
+}
+
+function useTimer(scope, measureId) {
+  const timer = getTimer(scope, measureId);
+  timer.elapsed = currentTimerMs(timer);
+  timer.running = false;
+  timer.stopped = true;
+  cancelAnimationFrame(timer.raf);
+  hideStopOverlay();
+  const measure = findMeasure(measureId);
+  const values = valuesFor(scope, measureId);
+  values.time = (timer.elapsed / 1000).toFixed(2);
+  saveState();
+  if (scope === "simple") renderSimpleMeasureList();
+  else renderTapMeasureList();
+  if (measure.fields.indexOf("steps") >= 0) {
+    const selector = `[data-field="steps"][data-scope="${scope}"][data-measure="${measureId}"]`;
+    focusFieldAlert(document.querySelector(selector));
+  }
 }
 
 function resetTimer(scope, measureId) {
@@ -523,175 +601,75 @@ function resetTimer(scope, measureId) {
   timer.running = false;
   timer.stopped = false;
   cancelAnimationFrame(timer.raf);
-  if (overlayTimerScope === scope && overlayTimerMeasure === measureId) {
-    hideStopOverlay();
-  }
+  if (overlayTimerScope === scope && overlayTimerMeasure === measureId) hideStopOverlay();
+  const values = valuesFor(scope, measureId);
+  values.time = "";
+  values.steps = "";
+  saveState();
   if (scope === "simple") renderSimpleMeasureList();
-  else renderMeasureList();
+  else renderTapMeasureList();
 }
 
 function handleValueInput(event) {
   const input = closestFieldInput(event.target);
   if (!input) return;
-
   const scope = input.dataset.scope || "tap";
   const values = valuesFor(scope, input.dataset.measure);
   values[input.dataset.field] = input.value;
   if (input.dataset.field === "steps") {
     input.parentNode.classList.remove("field-alert");
+    if (scope === "simple") {
+      const order = state.simpleProtocol.order || [];
+      const lastMeasureId = order[order.length - 1];
+      if (input.dataset.measure === lastMeasureId && input.value) {
+        focusNotesField("simple");
+      }
+    } else if (input.dataset.measure === "walkFast" && input.value) {
+      focusNotesField("tap");
+    }
   }
   saveState();
-
-  if (scope === "simple") renderSimpleMeasureList();
-  else if (input.dataset.field === "time") renderMeasureList();
-
-  renderSummary();
-}
-
-function baselineValue(measureId, field) {
-  const measure = state.values.before && state.values.before[measureId];
-  return numberValue(measure && measure[field]);
-}
-
-function pointValue(timepointId, measureId, field) {
-  const measure = state.values[timepointId] && state.values[timepointId][measureId];
-  return numberValue(measure && measure[field]);
-}
-
-function statusFor(timepointId, measureId, field) {
-  if (timepointId === "before") return { label: "Reference", className: "status-missing", detail: "" };
-
-  const base = baselineValue(measureId, field);
-  const value = pointValue(timepointId, measureId, field);
-  if (!base || !value) return { label: "A completer", className: "status-missing", detail: "" };
-
-  if (measureId === "tug") {
-    const gain = base - value;
-    return gain >= 5
-      ? { label: "TAP positif", className: "status-ok", detail: `Amelioration ${formatNumber(gain, 1)} s` }
-      : { label: "A surveiller", className: "status-watch", detail: `Amelioration ${formatNumber(gain, 1)} s` };
+  if (scope === "simple" && input.dataset.field === "time") {
+    renderSimpleMeasureList();
+  } else if (scope === "tap" && input.dataset.field === "time") {
+    renderTapMeasureList();
+  } else {
+    updateComputedDisplays(scope, input.dataset.measure);
   }
-
-  const variation = ((base - value) / base) * 100;
-  const thresholdMet = field === "steps" ? variation > 10 : variation > 10;
-  const label = field === "steps" ? "Diminution" : "Amelioration";
-
-  return thresholdMet
-    ? { label: "Seuil atteint", className: "status-ok", detail: `${label} ${formatNumber(variation, 1)} %` }
-    : { label: "A surveiller", className: "status-watch", detail: `${label} ${formatNumber(variation, 1)} %` };
 }
 
-function scoreGait4m(timeSeconds) {
-  if (!Number.isFinite(timeSeconds) || timeSeconds <= 0) return null;
-  if (timeSeconds <= 4.82) return 4;
-  if (timeSeconds <= 6.20) return 3;
-  if (timeSeconds <= 8.70) return 2;
-  return 1;
+function updateComputedDisplays(scope, measureId) {
+  const measure = findMeasure(measureId);
+  const values = valuesFor(scope, measureId);
+  const distance = distanceFor(scope, measure);
+  const time = numberValue(values.time);
+  const speed = distance && time ? distance / time : null;
+  eachNode(`.measure-card[data-scope="${scope}"][data-measure="${measureId}"] .computed strong`, (node) => {
+    node.textContent = speed ? `${formatNumber(speed, 2)} m/s` : "Non renseignee";
+  });
 }
 
-function scoreChair5(timeSeconds) {
-  if (!Number.isFinite(timeSeconds) || timeSeconds <= 0) return null;
-  if (timeSeconds <= 11.19) return 4;
-  if (timeSeconds <= 13.69) return 3;
-  if (timeSeconds <= 16.69) return 2;
-  if (timeSeconds < 60) return 1;
-  return 0;
-}
-
-function scoreBalance() {
-  const side = numberValue(state.simpleValues.balanceFeetTogether && state.simpleValues.balanceFeetTogether.time);
-  const semi = numberValue(state.simpleValues.balanceSemiTandem && state.simpleValues.balanceSemiTandem.time);
-  const tandem = numberValue(state.simpleValues.balanceTandem && state.simpleValues.balanceTandem.time);
-
-  if (!Number.isFinite(side)) return null;
-  if (side < 10) return 0;
-  if (!Number.isFinite(semi)) return null;
-  if (semi < 10) return 1;
-  if (!Number.isFinite(tandem)) return null;
-  if (tandem < 3) return 2;
-  if (tandem < 10) return 3;
-  return 4;
-}
-
-function renderSimpleScorePanel() {
-  const distance = simpleDistance();
-  const usualTime = numberValue(state.simpleValues.launchedUsual && state.simpleValues.launchedUsual.time);
-  const chairTime = numberValue(state.simpleValues.chair5 && state.simpleValues.chair5.time);
-  const gaitScore = Math.abs(distance - 4) < 0.01 ? scoreGait4m(usualTime) : null;
-  const chairScore = scoreChair5(chairTime);
-  const balance = scoreBalance();
-
-  const gaitScoreText = Math.abs(distance - 4) < 0.01
-    ? (gaitScore === null ? "A completer" : `${gaitScore} / 4`)
-    : "Disponible si distance = 4 m";
-
-  const scoreItems = [
-    {
-      label: "Marche usuelle",
-      value: gaitScoreText,
-    },
-    {
-      label: "5 levees de chaise",
-      value: chairScore === null ? "A completer" : `${chairScore} / 4`,
-    },
-    {
-      label: "Equilibre statique",
-      value: balance === null ? "A completer" : `${balance} / 4`,
-    },
-  ];
-
-  const total = [gaitScore, chairScore, balance].every((score) => score !== null)
-    ? gaitScore + chairScore + balance
-    : null;
-
-  simpleScorePanel.innerHTML = `
-    <div class="score-header">
-      <strong>Repere SPPB indicatif</strong>
-      <span>${total === null ? "Score incomplet" : `${total} / 12`}</span>
-    </div>
-    <div class="score-grid">
-      ${scoreItems.map((item) => `
-        <div class="score-item">
-          <span>${item.label}</span>
-          <strong>${item.value}</strong>
-        </div>
-      `).join("")}
-    </div>
-  `;
-}
-
-function renderSummary() {
-  return state.activeMode === "simple" ? simplePlainTextSummary() : plainTextSummary();
-}
-
-function exportTimestamp() {
-  return new Intl.DateTimeFormat("fr-FR", {
-    dateStyle: "short",
-    timeStyle: "short",
-  }).format(new Date());
-}
-
-function fieldValue(value, suffix = "") {
-  return Number.isFinite(value) ? `${formatNumber(value)}${suffix}` : "";
+function fieldValue(value, suffix) {
+  return Number.isFinite(value) ? `${formatNumber(value, 2)}${suffix || ""}` : "";
 }
 
 function stepsValue(value) {
   return Number.isFinite(value) ? formatNumber(value, 0) : "";
 }
 
+function exportTimestamp() {
+  return new Intl.DateTimeFormat("fr-FR", { dateStyle: "short", timeStyle: "short" }).format(new Date());
+}
+
 function plainTextSummary() {
   const timepoint = findTimepoint(state.activeTimepoint);
-  const timepointValues = state.values[timepoint.id] || {};
-  const tug = timepointValues.tug || {};
-  const usual = timepointValues.walkUsual || {};
-  const fast = timepointValues.walkFast || {};
-  const tugTime = numberValue(tug.time);
-  const usualTime = numberValue(usual.time);
-  const fastTime = numberValue(fast.time);
+  const values = state.values[timepoint.id] || {};
+  const tugTime = numberValue(values.tug && values.tug.time);
+  const usualTime = numberValue(values.walkUsual && values.walkUsual.time);
+  const fastTime = numberValue(values.walkFast && values.walkFast.time);
   const usualSpeed = usualTime ? 6 / usualTime : null;
   const fastSpeed = fastTime ? 6 / fastTime : null;
-
-  const lines = [
+  return [
     "Evaluation motrice du TAP test pour HCPN:",
     `- Date / heure : ${exportTimestamp()}`,
     `- Identifiant : ${state.participantId.trim() || ""}`,
@@ -699,104 +677,144 @@ function plainTextSummary() {
     "- Marche sur 6 m :",
     "-- usuelle",
     `--- vitesse (m/s) : ${fieldValue(usualSpeed)}`,
-    `--- nombre de pas : ${stepsValue(numberValue(usual.steps))}`,
+    `--- nombre de pas : ${stepsValue(numberValue(values.walkUsual && values.walkUsual.steps))}`,
     "-- rapide",
     `--- vitesse (m/s) : ${fieldValue(fastSpeed)}`,
-    `--- nombre de pas : ${stepsValue(numberValue(fast.steps))}`,
+    `--- nombre de pas : ${stepsValue(numberValue(values.walkFast && values.walkFast.steps))}`,
     `- TUG (s) : ${fieldValue(tugTime)}`,
     `- Notes : ${state.notes.trim() || ""}`,
-  ];
-
-  return lines.join("\n");
+  ].join("\n");
 }
 
-function simplePlainTextSummary() {
-  const distance = simpleDistance();
-  const usual = state.simpleValues.launchedUsual || {};
-  const fast = state.simpleValues.launchedFast || {};
-  const chair = state.simpleValues.chair5 || {};
-  const side = state.simpleValues.balanceFeetTogether || {};
-  const semi = state.simpleValues.balanceSemiTandem || {};
-  const tandem = state.simpleValues.balanceTandem || {};
+function csvEscape(value) {
+  const text = String(value == null ? "" : value);
+  return `"${text.replace(/"/g, "\"\"")}"`;
+}
 
-  const usualTime = numberValue(usual.time);
-  const fastTime = numberValue(fast.time);
-  const chairTime = numberValue(chair.time);
-  const usualSpeed = usualTime ? distance / usualTime : null;
-  const fastSpeed = fastTime ? distance / fastTime : null;
-  const gaitScore = Math.abs(distance - 4) < 0.01 ? scoreGait4m(usualTime) : null;
-  const chairScore = scoreChair5(chairTime);
-  const balance = scoreBalance();
-  const total = [gaitScore, chairScore, balance].every((score) => score !== null)
-    ? gaitScore + chairScore + balance
-    : null;
-
-  const lines = [
-    "Mesures simples de marche et SPPB:",
-    `- Date / heure : ${exportTimestamp()}`,
-    `- Identifiant : ${state.participantId.trim() || ""}`,
-    `- Distance de marche lancee : ${formatNumber(distance, 1)} m`,
-    "- Marche lancee usuelle :",
-    `-- temps (s) : ${fieldValue(usualTime)}`,
-    `-- vitesse (m/s) : ${fieldValue(usualSpeed)}`,
-    `-- nombre de pas : ${stepsValue(numberValue(usual.steps))}`,
-    "- Marche lancee rapide :",
-    `-- temps (s) : ${fieldValue(fastTime)}`,
-    `-- vitesse (m/s) : ${fieldValue(fastSpeed)}`,
-    `-- nombre de pas : ${stepsValue(numberValue(fast.steps))}`,
-    `- 5 levees de chaise (s) : ${fieldValue(chairTime)}`,
-    "- Equilibre statique type SPPB :",
-    `-- pieds joints (s) : ${fieldValue(numberValue(side.time), " s")}`,
-    `-- semi-tandem (s) : ${fieldValue(numberValue(semi.time), " s")}`,
-    `-- tandem (s) : ${fieldValue(numberValue(tandem.time), " s")}`,
-    "- Scores indicatifs :",
-    `-- marche usuelle 4 m : ${gaitScore === null ? "" : `${gaitScore}/4`}`,
-    `-- 5 levees de chaise : ${chairScore === null ? "" : `${chairScore}/4`}`,
-    `-- equilibre : ${balance === null ? "" : `${balance}/4`}`,
-    `-- total SPPB indicatif : ${total === null ? "" : `${total}/12`}`,
-    `- Notes : ${state.simpleNotes.trim() || ""}`,
+function simpleCsvContent() {
+  const clinical = state.simpleClinical;
+  const header = [
+    "timestamp",
+    "identifiant",
+    "ordre",
+    "measure_id",
+    "measure_label",
+    "categorie",
+    "distance_m",
+    "double_tache",
+    "temps_s",
+    "nombre_pas",
+    "vitesse_m_s",
+    "parachute_ant",
+    "parachute_post",
+    "appui_unipodal_g_s",
+    "appui_unipodal_d_s",
+    "douleur_avant_0_10",
+    "douleur_apres_0_10",
+    "douleur_commentaires",
+    "notes_generales",
   ];
+  const rows = [header];
+  const distance = simpleDistance();
+  const order = state.simpleProtocol.order || [];
+  for (let index = 0; index < order.length; index += 1) {
+    const measureId = order[index];
+    const measure = findMeasure(measureId);
+    const presentation = simpleMeasurePresentation(measureId, index + 1);
+    const values = state.simpleValues[measureId] || {};
+    const time = numberValue(values.time);
+    const steps = numberValue(values.steps);
+    const speed = time ? distance / time : null;
+    rows.push([
+      exportTimestamp(),
+      state.participantId.trim(),
+      index + 1,
+      measureId,
+      presentation.title,
+      measure.category,
+      formatNumber(distance, 1),
+      (state.simpleProtocol && state.simpleProtocol.dtLabels ? state.simpleProtocol.dtLabels[measureId] : "") || "",
+      time ? formatNumber(time, 2) : "",
+      stepsValue(steps),
+      speed ? formatNumber(speed, 3) : "",
+      clinical.parachuteAnt,
+      clinical.parachutePost,
+      clinical.unipodalLeft,
+      clinical.unipodalRight,
+      clinical.painBefore,
+      clinical.painAfter,
+      clinical.painNotes,
+      state.simpleNotes,
+    ]);
+  }
 
-  return lines.join("\n");
+  const tugValues = state.simpleValues.simpleTug || {};
+  rows.push([
+    exportTimestamp(),
+    state.participantId.trim(),
+    "",
+    "simpleTug",
+    "TUG",
+    "tug",
+    "",
+    "",
+    tugValues.time || "",
+    "",
+    "",
+    clinical.parachuteAnt,
+    clinical.parachutePost,
+    clinical.unipodalLeft,
+    clinical.unipodalRight,
+    clinical.painBefore,
+    clinical.painAfter,
+    clinical.painNotes,
+    state.simpleNotes,
+  ]);
+
+  return rows.map((row) => row.map(csvEscape).join(";")).join("\n");
+}
+
+async function shareText(title, text, filename) {
+  if (navigator.share && navigator.canShare && typeof File !== "undefined") {
+    try {
+      const file = new File([text], filename, { type: "text/csv;charset=utf-8" });
+      if (navigator.canShare({ files: [file] })) {
+        await navigator.share({ title, files: [file] });
+        return;
+      }
+    } catch (error) {
+      // fallback below
+    }
+  }
+  if (navigator.share) {
+    try {
+      await navigator.share({ title, text });
+      return;
+    } catch (error) {
+      // fallback below
+    }
+  }
+  await copyText(text);
 }
 
 async function shareResults() {
-  const text = plainTextSummary();
-  if (navigator.share) {
-    await navigator.share({
-      title: "Evaluation TAP test",
-      text,
-    });
-    return;
-  }
-  await copyText(text);
+  await shareText("Evaluation TAP test", plainTextSummary(), "tap-test.txt");
 }
 
 async function shareSimpleResults() {
-  const text = simplePlainTextSummary();
-  if (navigator.share) {
-    await navigator.share({
-      title: "Mesures marche et SPPB",
-      text,
-    });
-    return;
-  }
-  await copyText(text);
+  await shareText("Mesures simples", simpleCsvContent(), "mesures-simples.csv");
 }
 
 function mailResults() {
   const participant = state.participantId.trim() || "non renseigne";
-  const timepoint = findTimepoint(state.activeTimepoint);
-  const subject = encodeURIComponent(`Evaluation motrice TAP test HCPN - ${timepoint.label} - Identifiant : ${participant}`);
-  const body = encodeURIComponent(plainTextSummary());
-  window.location.href = `mailto:?subject=${subject}&body=${body}`;
+  const subject = encodeURIComponent(`Evaluation motrice TAP test HCPN - ${findTimepoint(state.activeTimepoint).label} - Identifiant : ${participant}`);
+  window.location.href = `mailto:?subject=${subject}&body=${encodeURIComponent(plainTextSummary())}`;
 }
 
 function mailSimpleResults() {
   const participant = state.participantId.trim() || "non renseigne";
-  const subject = encodeURIComponent(`Mesures marche et SPPB - Identifiant : ${participant}`);
-  const body = encodeURIComponent(simplePlainTextSummary());
-  window.location.href = `mailto:?subject=${subject}&body=${body}`;
+  const subject = encodeURIComponent(`Mesures simples CSV - Identifiant : ${participant}`);
+  window.location.href = `mailto:?subject=${subject}&body=${encodeURIComponent(simpleCsvContent())}`;
 }
 
 async function copyResults() {
@@ -804,7 +822,7 @@ async function copyResults() {
 }
 
 async function copySimpleResults() {
-  await copyText(simplePlainTextSummary());
+  await copyText(simpleCsvContent());
 }
 
 async function copyText(text) {
@@ -824,54 +842,97 @@ async function copyText(text) {
   alert("Synthese copiee dans le presse-papiers.");
 }
 
+function renderSummary() {
+  return state.activeMode === "simple" ? simpleCsvContent() : plainTextSummary();
+}
+
+function updateSimpleClinicalField(key, value) {
+  state.simpleClinical[key] = value;
+  saveState();
+  renderSummary();
+}
+
+function rerandomizeSimpleProtocol() {
+  state.simpleProtocol = buildSimpleProtocol(state.simpleDtSource);
+  state.simpleValues = {};
+  saveState();
+  hideStopOverlay();
+  renderSimpleMeasureList();
+  renderSummary();
+}
+
+function resetState() {
+  const next = normalizeState(null);
+  Object.assign(state, next);
+  timerState.forEach((timer) => {
+    timer.running = false;
+    cancelAnimationFrame(timer.raf);
+  });
+  timerState.clear();
+  hideStopOverlay();
+  saveState();
+  participantInput.value = "";
+  notesInput.value = "";
+  simpleNotesInput.value = state.simpleNotes;
+  simpleDistanceInput.value = state.simpleDistance;
+  simpleDtSourceInput.value = state.simpleDtSource;
+  renderModeTabs();
+  renderTimepointButtons();
+  renderTapMeasureList();
+  renderSimpleMeasureList();
+  renderSimpleClinical();
+}
+
 function bindEvents() {
   participantInput.value = state.participantId;
   notesInput.value = state.notes;
   simpleNotesInput.value = state.simpleNotes;
   simpleDistanceInput.value = state.simpleDistance;
+  simpleDtSourceInput.value = state.simpleDtSource;
 
   participantInput.addEventListener("input", () => {
     state.participantId = participantInput.value;
     saveState();
-    renderSummary();
   });
 
   notesInput.addEventListener("input", () => {
     state.notes = notesInput.value;
     notesInput.parentNode.classList.remove("field-alert");
     saveState();
-    renderSummary();
   });
 
   simpleNotesInput.addEventListener("input", () => {
     state.simpleNotes = simpleNotesInput.value;
     simpleNotesInput.parentNode.classList.remove("field-alert");
     saveState();
-    renderSummary();
   });
 
   simpleDistanceInput.addEventListener("input", () => {
     state.simpleDistance = simpleDistanceInput.value;
     saveState();
     renderSimpleMeasureList();
-    renderSummary();
   });
+
+  simpleDtSourceInput.addEventListener("input", () => {
+    state.simpleDtSource = simpleDtSourceInput.value;
+    saveState();
+  });
+
+  simpleRandomizeButton.addEventListener("click", rerandomizeSimpleProtocol);
 
   if (resetAllButton) {
     resetAllButton.addEventListener("click", () => {
-      const confirmed = window.confirm("Tout effacer pour demarrer un nouveau patient ?");
-      if (confirmed) resetState();
+      if (window.confirm("Tout effacer pour demarrer un nouveau patient ?")) {
+        resetState();
+      }
     });
   }
 
   if (stopOverlay) {
     stopOverlay.addEventListener("click", () => {
       if (!overlayTimerScope || !overlayTimerMeasure) return;
-      if (overlayMode === "armed") {
-        startTimer(overlayTimerScope, overlayTimerMeasure);
-      } else if (overlayMode === "running") {
-        stopTimer(overlayTimerScope, overlayTimerMeasure);
-      }
+      if (overlayMode === "armed") startTimer(overlayTimerScope, overlayTimerMeasure);
+      else if (overlayMode === "running") stopTimer(overlayTimerScope, overlayTimerMeasure);
     });
   }
 
@@ -881,7 +942,6 @@ function bindEvents() {
       saveState();
       hideStopOverlay();
       renderModeTabs();
-      renderSummary();
     });
   });
 
@@ -891,44 +951,39 @@ function bindEvents() {
       saveState();
       hideStopOverlay();
       renderTimepointButtons();
-      renderMeasureList();
+      renderTapMeasureList();
     });
   });
 
   measureList.addEventListener("input", handleValueInput);
   simpleMeasureList.addEventListener("input", handleValueInput);
-
-  measureList.addEventListener("change", (event) => {
-    const input = closestFieldInput(event.target);
-    if (!input) return;
-    if (input.dataset.field === "steps" && input.dataset.measure === "walkFast") {
-      focusNotesField("tap");
-    }
-  });
-
-  simpleMeasureList.addEventListener("change", (event) => {
-    const input = closestFieldInput(event.target);
-    if (!input) return;
-    if (input.dataset.field === "steps" && input.dataset.measure === "launchedFast") {
-      focusNotesField("simple");
-    }
-  });
+  simpleExtraList.addEventListener("input", handleValueInput);
 
   document.addEventListener("click", (event) => {
     const button = closestActionButton(event.target);
-    if (!button) return;
-    if (!button.dataset.measure) return;
-
+    if (!button || !button.dataset.measure) return;
     const scope = button.dataset.scope || "tap";
     if (button.dataset.action === "toggle") toggleTimer(scope, button.dataset.measure);
     if (button.dataset.action === "use") useTimer(scope, button.dataset.measure);
     if (button.dataset.action === "reset") resetTimer(scope, button.dataset.measure);
   });
 
+  eachNode(".choice-button", (button) => {
+    button.addEventListener("click", () => {
+      updateSimpleClinicalField(button.dataset.choiceGroup, button.dataset.choiceValue);
+      renderSimpleClinical();
+    });
+  });
+
+  unipodalLeftInput.addEventListener("input", () => updateSimpleClinicalField("unipodalLeft", unipodalLeftInput.value));
+  unipodalRightInput.addEventListener("input", () => updateSimpleClinicalField("unipodalRight", unipodalRightInput.value));
+  painBeforeInput.addEventListener("input", () => updateSimpleClinicalField("painBefore", painBeforeInput.value));
+  painAfterInput.addEventListener("input", () => updateSimpleClinicalField("painAfter", painAfterInput.value));
+  painNotesInput.addEventListener("input", () => updateSimpleClinicalField("painNotes", painNotesInput.value));
+
   document.getElementById("share-results").addEventListener("click", shareResults);
   document.getElementById("mail-results").addEventListener("click", mailResults);
   document.getElementById("copy-results").addEventListener("click", copyResults);
-
   document.getElementById("share-simple-results").addEventListener("click", shareSimpleResults);
   document.getElementById("mail-simple-results").addEventListener("click", mailSimpleResults);
   document.getElementById("copy-simple-results").addEventListener("click", copySimpleResults);
@@ -937,6 +992,6 @@ function bindEvents() {
 bindEvents();
 renderModeTabs();
 renderTimepointButtons();
-renderMeasureList();
+renderTapMeasureList();
 renderSimpleMeasureList();
-renderSummary();
+renderSimpleClinical();

@@ -280,6 +280,26 @@ textarea {
   box-shadow: var(--shadow);
 }
 
+.simple-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.simple-controls .secondary-action {
+  min-height: 48px;
+  padding: 0 16px;
+}
+
+.dt-bank-field {
+  margin-bottom: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
 .measure-list {
   display: grid;
   gap: 12px;
@@ -471,6 +491,58 @@ textarea {
   color: #fff;
 }
 
+.clinical-panel {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.clinical-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.clinical-card > strong {
+  color: var(--blue);
+  font-size: 1rem;
+}
+
+.choice-block {
+  display: grid;
+  gap: 8px;
+}
+
+.choice-block > span {
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.choice-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.choice-button {
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #f8fafc;
+  color: var(--ink);
+  font-weight: 900;
+}
+
+.choice-button.is-active {
+  background: var(--teal);
+  border-color: var(--teal);
+  color: #fff;
+}
+
 .status-chip {
   display: inline-flex;
   max-width: 100%;
@@ -615,6 +687,10 @@ textarea {
   }
 
   .field-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .simple-controls {
     grid-template-columns: 1fr;
   }
 
