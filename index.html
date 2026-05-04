@@ -35,7 +35,12 @@
       <button id="reset-all" class="reset-all" type="button">Tout reinitialiser</button>
     </section>
 
-    <section class="entry-panel" id="entry-panel">
+    <nav class="mode-tabs" aria-label="Type d'evaluation">
+      <button class="mode-button is-active" type="button" data-mode="tap">TAP test</button>
+      <button class="mode-button" type="button" data-mode="simple">Mesures simples</button>
+    </nav>
+
+    <section class="entry-panel mode-panel" id="entry-panel" data-panel="tap">
       <div class="timepoint-strip" role="group" aria-label="Temps de mesure">
         <button class="timepoint-button is-active" type="button" data-timepoint="before">Avant TAP</button>
         <button class="timepoint-button" type="button" data-timepoint="h2">2-4 h</button>
@@ -61,6 +66,33 @@
         <button id="copy-results" class="secondary-action" type="button">Copier</button>
       </div>
     </section>
+
+    <section class="entry-panel mode-panel" id="simple-panel" data-panel="simple" hidden>
+      <div class="section-heading">
+        <strong>Mesures de marche et SPPB simplifie</strong>
+        <p>Mesure ponctuelle : marche lancee usuelle et rapide avec nombre de pas, 5 levees de chaise, puis equilibre statique type SPPB.</p>
+      </div>
+
+      <label class="field simple-distance-field">
+        <span>Distance de marche lancee (m)</span>
+        <input id="simple-walk-distance" type="number" min="1" max="20" step="0.5" inputmode="decimal" value="4" />
+      </label>
+
+      <div id="simple-measure-list" class="measure-list"></div>
+
+      <div id="simple-score-panel" class="score-panel" aria-live="polite"></div>
+
+      <label class="field final-notes">
+        <span>Notes mesures simples</span>
+        <textarea id="simple-notes" rows="5" placeholder="Aide technique, consignes, chaussage, douleur, securite, interpretation clinique..."></textarea>
+      </label>
+
+      <div class="action-row">
+        <button id="share-simple-results" class="primary-action" type="button">Partager</button>
+        <button id="mail-simple-results" class="secondary-action" type="button">Mail</button>
+        <button id="copy-simple-results" class="secondary-action" type="button">Copier</button>
+      </div>
+    </section>
   </main>
 
   <button id="stop-overlay" class="stop-overlay" type="button" aria-label="Arreter le chronometre">
@@ -69,6 +101,6 @@
     <span id="stop-overlay-time" class="stop-overlay-time">00:00.00</span>
   </button>
 
-  <script src="./app.js?v=20260422-arm-start-stop"></script>
+  <script src="./app.js?v=20260424-walk-sppb-tab"></script>
 </body>
 </html>
