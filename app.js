@@ -90,7 +90,6 @@ const defaultState = {
   notes: "",
   values: {},
   simpleDistance: "4",
-  simpleDtSource: dualTaskBank.join("\n"),
   simpleNotes: "",
   simpleValues: {},
   simpleProtocol: null,
@@ -121,7 +120,6 @@ const participantInput = document.getElementById("participant-id");
 const notesInput = document.getElementById("qualitative-notes");
 const simpleNotesInput = document.getElementById("simple-notes");
 const simpleDistanceInput = document.getElementById("simple-walk-distance");
-const simpleDtSourceInput = document.getElementById("simple-dt-source");
 const simpleRandomizeButton = document.getElementById("simple-randomize");
 const measureList = document.getElementById("measure-list");
 const simpleMeasureList = document.getElementById("simple-measure-list");
@@ -177,14 +175,14 @@ function shuffleArray(items) {
   return copy;
 }
 
-function buildSimpleProtocol(source) {
+function buildSimpleProtocol() {
   const walkIds = [
     "usual1", "usual2", "usual3",
     "fast1", "fast2", "fast3",
     "dtUsual1", "dtUsual2",
     "dtFast1", "dtFast2",
   ];
-  const dualTasks = shuffleArray(dualTaskPool(source)).slice(0, 4);
+  const dualTasks = shuffleArray(dualTaskPool()).slice(0, 4);
   const selectedSet = dualTasks[0] || { label: "", taskA: "", taskB: "" };
   return {
     order: shuffleArray(walkIds),
@@ -198,24 +196,7 @@ function buildSimpleProtocol(source) {
   };
 }
 
-function dualTaskPool(source) {
-  const text = String(source || "");
-  const lines = text
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-  const parsedSets = [];
-  for (let index = 0; index < lines.length; index += 1) {
-    const parts = lines[index].split("|").map((part) => part.trim()).filter(Boolean);
-    if (parts.length >= 3) {
-      parsedSets.push({
-        label: parts[0],
-        taskA: parts[1],
-        taskB: parts[2],
-      });
-    }
-  }
-  if (parsedSets.length >= 1) return parsedSets;
+function dualTaskPool() {
   return dualTaskSets.slice();
 }
 
@@ -223,9 +204,6 @@ function normalizeState(candidate) {
   const normalized = Object.assign(freshDefaultState(), candidate || {});
   if (!normalized.values || typeof normalized.values !== "object") normalized.values = {};
   if (!normalized.simpleValues || typeof normalized.simpleValues !== "object") normalized.simpleValues = {};
-  if (typeof normalized.simpleDtSource !== "string" || !normalized.simpleDtSource.trim()) {
-    normalized.simpleDtSource = dualTaskBank.join("\n");
-  }
   const hasValidProtocol = normalized.simpleProtocol
     && Array.isArray(normalized.simpleProtocol.order)
     && normalized.simpleProtocol.order.length === 10
@@ -233,7 +211,7 @@ function normalizeState(candidate) {
     && normalized.simpleProtocol.dtLabels
     && typeof normalized.simpleProtocol.dtLabels === "object";
   if (!hasValidProtocol) {
-    normalized.simpleProtocol = buildSimpleProtocol(normalized.simpleDtSource);
+    normalized.simpleProtocol = buildSimpleProtocol();
   }
   if (!normalized.simpleClinical || typeof normalized.simpleClinical !== "object") {
     normalized.simpleClinical = freshDefaultState().simpleClinical;
@@ -525,7 +503,6 @@ function renderSimpleMeasureList() {
 
 function renderSimpleClinical() {
   const clinical = state.simpleClinical;
-  if (simpleDtSourceInput && document.activeElement !== simpleDtSourceInput) simpleDtSourceInput.value = state.simpleDtSource || "";
   if (unipodalLeftInput && document.activeElement !== unipodalLeftInput) unipodalLeftInput.value = clinical.unipodalLeft || "";
   if (unipodalRightInput && document.activeElement !== unipodalRightInput) unipodalRightInput.value = clinical.unipodalRight || "";
   if (painBeforeInput && document.activeElement !== painBeforeInput) painBeforeInput.value = clinical.painBefore || "";
@@ -1071,7 +1048,7 @@ function bindSimpleClinicalInput(input, key) {
 }
 
 function rerandomizeSimpleProtocol() {
-  state.simpleProtocol = buildSimpleProtocol(state.simpleDtSource);
+  state.simpleProtocol = buildSimpleProtocol();
   state.simpleValues = {};
   saveState();
   hideStopOverlay();
@@ -1093,7 +1070,6 @@ function resetState() {
   notesInput.value = "";
   simpleNotesInput.value = state.simpleNotes;
   simpleDistanceInput.value = state.simpleDistance;
-  simpleDtSourceInput.value = state.simpleDtSource;
   renderModeTabs();
   renderTimepointButtons();
   renderTapMeasureList();
@@ -1106,7 +1082,6 @@ function bindEvents() {
   notesInput.value = state.notes;
   simpleNotesInput.value = state.simpleNotes;
   simpleDistanceInput.value = state.simpleDistance;
-  simpleDtSourceInput.value = state.simpleDtSource;
 
   participantInput.addEventListener("input", () => {
     state.participantId = participantInput.value;
@@ -1129,11 +1104,6 @@ function bindEvents() {
     state.simpleDistance = simpleDistanceInput.value;
     saveState();
     renderSimpleMeasureList();
-  });
-
-  simpleDtSourceInput.addEventListener("input", () => {
-    state.simpleDtSource = simpleDtSourceInput.value;
-    saveState();
   });
 
   simpleRandomizeButton.addEventListener("click", rerandomizeSimpleProtocol);
