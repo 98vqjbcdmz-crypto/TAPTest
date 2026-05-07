@@ -147,6 +147,60 @@
             </label>
           </div>
         </div>
+
+        <div class="clinical-card">
+          <strong>Champs du modele Excel</strong>
+          <div class="field-grid">
+            <label class="field">
+              <span>Age (ans)</span>
+              <input id="simple-age" type="number" min="0" step="1" inputmode="numeric" placeholder="0" />
+            </label>
+            <label class="field">
+              <span>Sexe</span>
+              <input id="simple-sex" type="text" inputmode="text" placeholder="F / M" />
+            </label>
+            <label class="field">
+              <span>Taille (cm)</span>
+              <input id="simple-height" type="number" min="0" step="1" inputmode="numeric" placeholder="0" />
+            </label>
+            <label class="field">
+              <span>Poids (kg)</span>
+              <input id="simple-weight" type="number" min="0" step="0.1" inputmode="decimal" placeholder="0,0" />
+            </label>
+            <label class="field">
+              <span>Evaluateur</span>
+              <input id="simple-evaluator" type="text" inputmode="text" placeholder="SL" />
+            </label>
+            <label class="field">
+              <span>Surface / chaussures</span>
+              <input id="simple-surface" type="text" inputmode="text" placeholder="ex. couloir, baskets" />
+            </label>
+            <label class="field">
+              <span>Elan (m)</span>
+              <input id="simple-lead-in" type="number" min="0" step="0.5" inputmode="decimal" placeholder="2" />
+            </label>
+            <label class="field">
+              <span>Deceleration (m)</span>
+              <input id="simple-slow-down" type="number" min="0" step="0.5" inputmode="decimal" placeholder="2" />
+            </label>
+            <label class="field wide">
+              <span>Diagnostic / contexte</span>
+              <textarea id="simple-context" rows="2" placeholder="Diagnostic, contexte clinique, indication..."></textarea>
+            </label>
+            <label class="field">
+              <span>5TSTS (s)</span>
+              <input id="simple-chair5" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0,00" />
+            </label>
+            <label class="field">
+              <span>Tandem / equilibre +</span>
+              <input id="simple-tandem" type="text" inputmode="text" placeholder="tandem ; xx" />
+            </label>
+            <label class="field wide">
+              <span>Handgrip</span>
+              <input id="simple-handgrip" type="text" inputmode="text" placeholder="D+ XX, xx, xx, G- XX, xx, xx" />
+            </label>
+          </div>
+        </div>
       </section>
 
       <label class="field final-notes">
@@ -158,6 +212,7 @@
         <button id="share-simple-results" class="primary-action" type="button">Partager</button>
         <button id="mail-simple-results" class="secondary-action" type="button">Mail</button>
         <button id="copy-simple-results" class="secondary-action" type="button">Copier</button>
+        <button id="download-simple-excel" class="secondary-action" type="button">Excel modele</button>
       </div>
     </section>
   </main>
@@ -168,6 +223,7 @@
     <span id="stop-overlay-time" class="stop-overlay-time">00:00.00</span>
   </button>
 
-  <script src="./app.js?v=20260504-randomized-velocity-series"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="./app.js?v=20260507-powerapps-excel-template"></script>
 </body>
 </html>

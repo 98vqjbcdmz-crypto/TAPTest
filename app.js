@@ -84,6 +84,18 @@ const defaultState = {
     painBefore: "",
     painAfter: "",
     painNotes: "",
+    age: "",
+    sex: "",
+    height: "",
+    weight: "",
+    evaluator: "SL",
+    surface: "",
+    leadIn: "2",
+    slowDown: "2",
+    context: "",
+    chair5: "",
+    tandem: "",
+    handgrip: "",
   },
 };
 
@@ -109,6 +121,18 @@ const unipodalRightInput = document.getElementById("simple-unipodal-right");
 const painBeforeInput = document.getElementById("simple-pain-before");
 const painAfterInput = document.getElementById("simple-pain-after");
 const painNotesInput = document.getElementById("simple-pain-notes");
+const ageInput = document.getElementById("simple-age");
+const sexInput = document.getElementById("simple-sex");
+const heightInput = document.getElementById("simple-height");
+const weightInput = document.getElementById("simple-weight");
+const evaluatorInput = document.getElementById("simple-evaluator");
+const surfaceInput = document.getElementById("simple-surface");
+const leadInInput = document.getElementById("simple-lead-in");
+const slowDownInput = document.getElementById("simple-slow-down");
+const contextInput = document.getElementById("simple-context");
+const chair5Input = document.getElementById("simple-chair5");
+const tandemInput = document.getElementById("simple-tandem");
+const handgripInput = document.getElementById("simple-handgrip");
 
 const state = loadState();
 const timerState = new Map();
@@ -477,6 +501,18 @@ function renderSimpleClinical() {
   if (painBeforeInput && document.activeElement !== painBeforeInput) painBeforeInput.value = clinical.painBefore || "";
   if (painAfterInput && document.activeElement !== painAfterInput) painAfterInput.value = clinical.painAfter || "";
   if (painNotesInput && document.activeElement !== painNotesInput) painNotesInput.value = clinical.painNotes || "";
+  if (ageInput && document.activeElement !== ageInput) ageInput.value = clinical.age || "";
+  if (sexInput && document.activeElement !== sexInput) sexInput.value = clinical.sex || "";
+  if (heightInput && document.activeElement !== heightInput) heightInput.value = clinical.height || "";
+  if (weightInput && document.activeElement !== weightInput) weightInput.value = clinical.weight || "";
+  if (evaluatorInput && document.activeElement !== evaluatorInput) evaluatorInput.value = clinical.evaluator || "";
+  if (surfaceInput && document.activeElement !== surfaceInput) surfaceInput.value = clinical.surface || "";
+  if (leadInInput && document.activeElement !== leadInInput) leadInInput.value = clinical.leadIn || "";
+  if (slowDownInput && document.activeElement !== slowDownInput) slowDownInput.value = clinical.slowDown || "";
+  if (contextInput && document.activeElement !== contextInput) contextInput.value = clinical.context || "";
+  if (chair5Input && document.activeElement !== chair5Input) chair5Input.value = clinical.chair5 || "";
+  if (tandemInput && document.activeElement !== tandemInput) tandemInput.value = clinical.tandem || "";
+  if (handgripInput && document.activeElement !== handgripInput) handgripInput.value = clinical.handgrip || "";
   eachNode(".choice-button", (button) => {
     const group = button.dataset.choiceGroup;
     button.classList.toggle("is-active", clinical[group] === button.dataset.choiceValue);
@@ -691,87 +727,113 @@ function csvEscape(value) {
   return `"${text.replace(/"/g, "\"\"")}"`;
 }
 
-function simpleCsvContent() {
-  const clinical = state.simpleClinical;
-  const header = [
-    "timestamp",
-    "identifiant",
-    "ordre",
-    "measure_id",
-    "measure_label",
-    "categorie",
-    "distance_m",
-    "double_tache",
-    "temps_s",
-    "nombre_pas",
-    "vitesse_m_s",
-    "parachute_ant",
-    "parachute_post",
-    "appui_unipodal_g_s",
-    "appui_unipodal_d_s",
-    "douleur_avant_0_10",
-    "douleur_apres_0_10",
-    "douleur_commentaires",
-    "notes_generales",
-  ];
-  const rows = [header];
-  const distance = simpleDistance();
+function measureTimeValue(measureId) {
+  const entry = state.simpleValues[measureId] || {};
+  const time = numberValue(entry.time);
+  return Number.isFinite(time) ? time : null;
+}
+
+function categoryTimes(category) {
+  const matches = [];
   const order = state.simpleProtocol.order || [];
   for (let index = 0; index < order.length; index += 1) {
     const measureId = order[index];
     const measure = findMeasure(measureId);
-    const presentation = simpleMeasurePresentation(measureId, index + 1);
-    const values = state.simpleValues[measureId] || {};
-    const time = numberValue(values.time);
-    const steps = numberValue(values.steps);
-    const speed = time ? distance / time : null;
-    rows.push([
-      exportTimestamp(),
-      state.participantId.trim(),
-      index + 1,
-      measureId,
-      presentation.title,
-      measure.category,
-      formatNumber(distance, 1),
-      (state.simpleProtocol && state.simpleProtocol.dtLabels ? state.simpleProtocol.dtLabels[measureId] : "") || "",
-      time ? formatNumber(time, 2) : "",
-      stepsValue(steps),
-      speed ? formatNumber(speed, 3) : "",
-      clinical.parachuteAnt,
-      clinical.parachutePost,
-      clinical.unipodalLeft,
-      clinical.unipodalRight,
-      clinical.painBefore,
-      clinical.painAfter,
-      clinical.painNotes,
-      state.simpleNotes,
-    ]);
+    if (!measure || measure.category !== category) continue;
+    const time = measureTimeValue(measureId);
+    if (Number.isFinite(time)) matches.push(time);
   }
+  return matches;
+}
 
-  const tugValues = state.simpleValues.simpleTug || {};
-  rows.push([
-    exportTimestamp(),
-    state.participantId.trim(),
-    "",
-    "simpleTug",
-    "TUG",
-    "tug",
-    "",
-    "",
-    tugValues.time || "",
-    "",
-    "",
-    clinical.parachuteAnt,
-    clinical.parachutePost,
-    clinical.unipodalLeft,
-    clinical.unipodalRight,
-    clinical.painBefore,
-    clinical.painAfter,
-    clinical.painNotes,
-    state.simpleNotes,
-  ]);
+function parachuteSummary() {
+  const ant = (state.simpleClinical.parachuteAnt || "").trim().toLowerCase();
+  const post = (state.simpleClinical.parachutePost || "").trim().toLowerCase();
+  if (!ant && !post) return "";
+  return `ant ${ant || "?"}; post ${post || "?"}`;
+}
 
-  return rows.map((row) => row.map(csvEscape).join(";")).join("\n");
+function unipodalSummary() {
+  const right = String(state.simpleClinical.unipodalRight || "").trim();
+  const left = String(state.simpleClinical.unipodalLeft || "").trim();
+  if (!right && !left) return "";
+  return `D ${right || "XX"}; G ${left || "XX"}`;
+}
+
+function dualTaskSummary() {
+  const labels = state.simpleProtocol && state.simpleProtocol.dtLabels ? state.simpleProtocol.dtLabels : {};
+  const items = [];
+  const order = ["dtUsual1", "dtUsual2", "dtFast1", "dtFast2"];
+  for (let index = 0; index < order.length; index += 1) {
+    const key = order[index];
+    if (labels[key]) items.push(labels[key]);
+  }
+  return items.join(" | ");
+}
+
+function currentDateIso() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function decimalExport(value, digits) {
+  if (!Number.isFinite(value)) return "";
+  return value.toFixed(typeof digits === "number" ? digits : 2);
+}
+
+function simpleWorkbookRecord() {
+  const clinical = state.simpleClinical;
+  const usualTimes = categoryTimes("usual");
+  const fastTimes = categoryTimes("fast");
+  const dtUsualTimes = categoryTimes("dtUsual");
+  const dtFastTimes = categoryTimes("dtFast");
+  const tug = state.simpleValues.simpleTug || {};
+  return {
+    export_timestamp: exportTimestamp(),
+    template_name: "XXXX NIP_fiche_4m_usuel_rapide_complexite.xlsx",
+    template_sheet: "Recueil",
+    recueil_B5_identifiant: state.participantId.trim(),
+    recueil_E5_date: currentDateIso(),
+    recueil_H5_groupe: "MCO",
+    recueil_B6_age_ans: clinical.age || "",
+    recueil_E6_sexe: clinical.sex || "",
+    recueil_B7_taille_cm: clinical.height || "",
+    recueil_E7_poids_kg: clinical.weight || "",
+    recueil_B8_diagnostic_contexte: clinical.context || "",
+    recueil_E8_evaluateur: clinical.evaluator || "",
+    recueil_B11_distance_m: decimalExport(simpleDistance(), 1),
+    recueil_E11_elan_m: clinical.leadIn || "",
+    recueil_B12_deceleration_m: clinical.slowDown || "",
+    recueil_E12_surface_chaussures: clinical.surface || "",
+    recueil_B16_usuel_1_s: decimalExport(usualTimes[0], 2),
+    recueil_B17_usuel_2_s: decimalExport(usualTimes[1], 2),
+    recueil_B18_usuel_3_s: decimalExport(usualTimes[2], 2),
+    recueil_B22_rapide_1_s: decimalExport(fastTimes[0], 2),
+    recueil_B23_rapide_2_s: decimalExport(fastTimes[1], 2),
+    recueil_B24_rapide_3_s: decimalExport(fastTimes[2], 2),
+    recueil_B27_usuel_apres_rapide_s: "",
+    recueil_B28_rapide_apres_usuel_s: "",
+    recueil_B31_type_double_tache: dualTaskSummary(),
+    recueil_B33_usuel_dt_1_s: decimalExport(dtUsualTimes[0], 2),
+    recueil_E33_usuel_dt_2_s: decimalExport(dtUsualTimes[1], 2),
+    recueil_G33_5tsts_s: clinical.chair5 || "",
+    recueil_B35_rapide_dt_1_s: decimalExport(dtFastTimes[0], 2),
+    recueil_E35_rapide_dt_2_s: decimalExport(dtFastTimes[1], 2),
+    recueil_H35_parachutes: parachuteSummary(),
+    recueil_B37_equilibre_unipodal: unipodalSummary(),
+    recueil_E37_tandem: clinical.tandem || "",
+    recueil_H37_tug_s: tug.time || "",
+    recueil_E39_handgrip: clinical.handgrip || "",
+    recueil_A42_notes_globales: [state.simpleNotes, clinical.painNotes].filter(Boolean).join("\n"),
+    douleur_avant_0_10: clinical.painBefore || "",
+    douleur_apres_0_10: clinical.painAfter || "",
+  };
+}
+
+function simpleCsvContent() {
+  const record = simpleWorkbookRecord();
+  const header = Object.keys(record);
+  const row = header.map((key) => record[key]);
+  return [header, row].map((values) => values.map(csvEscape).join(";")).join("\n");
 }
 
 async function shareText(title, text, filename) {
@@ -799,6 +861,126 @@ async function shareText(title, text, filename) {
 
 async function shareResults() {
   await shareText("Evaluation TAP test", plainTextSummary(), "tap-test.txt");
+}
+
+function xmlFirst(doc, tagName) {
+  return doc.getElementsByTagName(tagName)[0] || null;
+}
+
+function escapeXml(text) {
+  return String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+function worksheetCell(doc, ref) {
+  const cells = doc.getElementsByTagName("c");
+  for (let index = 0; index < cells.length; index += 1) {
+    if (cells[index].getAttribute("r") === ref) return cells[index];
+  }
+  return null;
+}
+
+function setWorksheetValue(doc, ref, rawValue) {
+  const cell = worksheetCell(doc, ref);
+  if (!cell) return;
+  while (cell.firstChild) cell.removeChild(cell.firstChild);
+  const value = rawValue == null ? "" : String(rawValue).trim();
+  if (!value) {
+    cell.removeAttribute("t");
+    return;
+  }
+  const normalized = value.replace(",", ".");
+  const numericPattern = /^-?\d+(?:\.\d+)?$/;
+  if (numericPattern.test(normalized)) {
+    cell.removeAttribute("t");
+    const node = doc.createElement("v");
+    node.textContent = normalized;
+    cell.appendChild(node);
+    return;
+  }
+  cell.setAttribute("t", "inlineStr");
+  const isNode = doc.createElement("is");
+  const tNode = doc.createElement("t");
+  tNode.textContent = value;
+  isNode.appendChild(tNode);
+  cell.appendChild(isNode);
+}
+
+function workbookFileName() {
+  const participant = state.participantId.trim() || "sans-identifiant";
+  const safe = participant.replace(/[^a-z0-9_-]+/gi, "_");
+  return `${safe}_fiche_4m_usuel_rapide_complexite.xlsx`;
+}
+
+async function downloadSimpleExcel() {
+  if (typeof JSZip === "undefined") {
+    alert("La librairie d'export Excel n'est pas disponible.");
+    return;
+  }
+  const response = await fetch("./assets/fiche_4m_usuel_rapide_complexite_template.xlsx");
+  if (!response.ok) {
+    alert("Modele Excel introuvable.");
+    return;
+  }
+  const buffer = await response.arrayBuffer();
+  const zip = await JSZip.loadAsync(buffer);
+  const sheetXml = await zip.file("xl/worksheets/sheet1.xml").async("string");
+  const doc = new DOMParser().parseFromString(sheetXml, "application/xml");
+  const record = simpleWorkbookRecord();
+  const cellMap = {
+    B5: record.recueil_B5_identifiant,
+    E5: record.recueil_E5_date,
+    H5: record.recueil_H5_groupe,
+    B6: record.recueil_B6_age_ans,
+    E6: record.recueil_E6_sexe,
+    B7: record.recueil_B7_taille_cm,
+    E7: record.recueil_E7_poids_kg,
+    B8: record.recueil_B8_diagnostic_contexte,
+    E8: record.recueil_E8_evaluateur,
+    B11: record.recueil_B11_distance_m,
+    E11: record.recueil_E11_elan_m,
+    B12: record.recueil_B12_deceleration_m,
+    E12: record.recueil_E12_surface_chaussures,
+    B16: record.recueil_B16_usuel_1_s,
+    B17: record.recueil_B17_usuel_2_s,
+    B18: record.recueil_B18_usuel_3_s,
+    B22: record.recueil_B22_rapide_1_s,
+    B23: record.recueil_B23_rapide_2_s,
+    B24: record.recueil_B24_rapide_3_s,
+    B27: record.recueil_B27_usuel_apres_rapide_s,
+    B28: record.recueil_B28_rapide_apres_usuel_s,
+    B31: record.recueil_B31_type_double_tache,
+    B33: record.recueil_B33_usuel_dt_1_s,
+    E33: record.recueil_E33_usuel_dt_2_s,
+    G33: record.recueil_G33_5tsts_s,
+    B35: record.recueil_B35_rapide_dt_1_s,
+    E35: record.recueil_E35_rapide_dt_2_s,
+    H35: record.recueil_H35_parachutes,
+    B37: record.recueil_B37_equilibre_unipodal,
+    E37: record.recueil_E37_tandem,
+    H37: record.recueil_H37_tug_s,
+    E39: record.recueil_E39_handgrip,
+    A42: record.recueil_A42_notes_globales,
+  };
+  const refs = Object.keys(cellMap);
+  for (let index = 0; index < refs.length; index += 1) {
+    setWorksheetValue(doc, refs[index], cellMap[refs[index]]);
+  }
+  const serialized = new XMLSerializer().serializeToString(doc);
+  zip.file("xl/worksheets/sheet1.xml", serialized);
+  const blob = await zip.generateAsync({ type: "blob" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = workbookFileName();
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 async function shareSimpleResults() {
@@ -850,6 +1032,11 @@ function updateSimpleClinicalField(key, value) {
   state.simpleClinical[key] = value;
   saveState();
   renderSummary();
+}
+
+function bindSimpleClinicalInput(input, key) {
+  if (!input) return;
+  input.addEventListener("input", () => updateSimpleClinicalField(key, input.value));
 }
 
 function rerandomizeSimpleProtocol() {
@@ -975,11 +1162,23 @@ function bindEvents() {
     });
   });
 
-  unipodalLeftInput.addEventListener("input", () => updateSimpleClinicalField("unipodalLeft", unipodalLeftInput.value));
-  unipodalRightInput.addEventListener("input", () => updateSimpleClinicalField("unipodalRight", unipodalRightInput.value));
-  painBeforeInput.addEventListener("input", () => updateSimpleClinicalField("painBefore", painBeforeInput.value));
-  painAfterInput.addEventListener("input", () => updateSimpleClinicalField("painAfter", painAfterInput.value));
-  painNotesInput.addEventListener("input", () => updateSimpleClinicalField("painNotes", painNotesInput.value));
+  bindSimpleClinicalInput(unipodalLeftInput, "unipodalLeft");
+  bindSimpleClinicalInput(unipodalRightInput, "unipodalRight");
+  bindSimpleClinicalInput(painBeforeInput, "painBefore");
+  bindSimpleClinicalInput(painAfterInput, "painAfter");
+  bindSimpleClinicalInput(painNotesInput, "painNotes");
+  bindSimpleClinicalInput(ageInput, "age");
+  bindSimpleClinicalInput(sexInput, "sex");
+  bindSimpleClinicalInput(heightInput, "height");
+  bindSimpleClinicalInput(weightInput, "weight");
+  bindSimpleClinicalInput(evaluatorInput, "evaluator");
+  bindSimpleClinicalInput(surfaceInput, "surface");
+  bindSimpleClinicalInput(leadInInput, "leadIn");
+  bindSimpleClinicalInput(slowDownInput, "slowDown");
+  bindSimpleClinicalInput(contextInput, "context");
+  bindSimpleClinicalInput(chair5Input, "chair5");
+  bindSimpleClinicalInput(tandemInput, "tandem");
+  bindSimpleClinicalInput(handgripInput, "handgrip");
 
   document.getElementById("share-results").addEventListener("click", shareResults);
   document.getElementById("mail-results").addEventListener("click", mailResults);
@@ -987,6 +1186,7 @@ function bindEvents() {
   document.getElementById("share-simple-results").addEventListener("click", shareSimpleResults);
   document.getElementById("mail-simple-results").addEventListener("click", mailSimpleResults);
   document.getElementById("copy-simple-results").addEventListener("click", copySimpleResults);
+  document.getElementById("download-simple-excel").addEventListener("click", downloadSimpleExcel);
 }
 
 bindEvents();

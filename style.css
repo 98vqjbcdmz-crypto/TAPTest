@@ -450,7 +450,7 @@ textarea {
 .timer-actions,
 .action-row {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -692,6 +692,10 @@ textarea {
 
   .simple-controls {
     grid-template-columns: 1fr;
+  }
+
+  .action-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .timer-display {
