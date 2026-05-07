@@ -282,14 +282,9 @@ textarea {
 
 .simple-controls {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
   align-items: end;
-}
-
-.simple-controls .secondary-action {
-  min-height: 48px;
-  padding: 0 16px;
 }
 
 .dt-bank-field {
@@ -298,6 +293,16 @@ textarea {
   border: 1px solid var(--line);
   background: var(--surface);
   box-shadow: var(--shadow);
+}
+
+.randomize-row {
+  margin-bottom: 12px;
+}
+
+.randomize-button {
+  width: 100%;
+  min-height: 52px;
+  font-size: 0.98rem;
 }
 
 .measure-list {
