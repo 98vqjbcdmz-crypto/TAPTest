@@ -54,16 +54,34 @@ const simpleMeasures = [
   },
 ];
 
-const dualTaskBank = [
-  "Compter de 2 en 2",
-  "Compter a rebours depuis 50",
-  "Mois de l'annee a l'envers",
-  "Jours de la semaine a l'envers",
-  "Animaux par categorie",
-  "Fruits par categorie",
-  "Nommer des villes",
-  "Epeler un mot a l'envers",
+const dualTaskSets = [
+  {
+    id: "set1",
+    label: "Set 1",
+    taskA: "Meubles / vetements",
+    taskB: "Equipement de sport",
+  },
+  {
+    id: "set2",
+    label: "Set 2",
+    taskA: "Choses que l'on voit dans un parc d'attractions",
+    taskB: "Choses que l'on voit dans un restaurant",
+  },
+  {
+    id: "set3",
+    label: "Set 3",
+    taskA: "Fruits / legumes",
+    taskB: "Choses que l'on voit a la plage",
+  },
+  {
+    id: "set4",
+    label: "Set 4",
+    taskA: "Parties du corps",
+    taskB: "Metiers / professions",
+  },
 ];
+
+const dualTaskBank = dualTaskSets.map((item) => `${item.label} | ${item.taskA} | ${item.taskB}`);
 
 const defaultState = {
   participantId: "",
@@ -167,13 +185,15 @@ function buildSimpleProtocol(source) {
     "dtFast1", "dtFast2",
   ];
   const dualTasks = shuffleArray(dualTaskPool(source)).slice(0, 4);
+  const selectedSet = dualTasks[0] || { label: "", taskA: "", taskB: "" };
   return {
     order: shuffleArray(walkIds),
+    dtSetLabel: selectedSet.label || "",
     dtLabels: {
-      dtUsual1: dualTasks[0] || "",
-      dtUsual2: dualTasks[1] || "",
-      dtFast1: dualTasks[2] || "",
-      dtFast2: dualTasks[3] || "",
+      dtUsual1: selectedSet.taskA || "",
+      dtUsual2: selectedSet.taskB || "",
+      dtFast1: selectedSet.taskA || "",
+      dtFast2: selectedSet.taskB || "",
     },
   };
 }
@@ -184,12 +204,19 @@ function dualTaskPool(source) {
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean);
-  const unique = [];
+  const parsedSets = [];
   for (let index = 0; index < lines.length; index += 1) {
-    if (unique.indexOf(lines[index]) < 0) unique.push(lines[index]);
+    const parts = lines[index].split("|").map((part) => part.trim()).filter(Boolean);
+    if (parts.length >= 3) {
+      parsedSets.push({
+        label: parts[0],
+        taskA: parts[1],
+        taskB: parts[2],
+      });
+    }
   }
-  if (unique.length >= 4) return unique;
-  return dualTaskBank.slice();
+  if (parsedSets.length >= 1) return parsedSets;
+  return dualTaskSets.slice();
 }
 
 function normalizeState(candidate) {
@@ -202,6 +229,7 @@ function normalizeState(candidate) {
   const hasValidProtocol = normalized.simpleProtocol
     && Array.isArray(normalized.simpleProtocol.order)
     && normalized.simpleProtocol.order.length === 10
+    && typeof normalized.simpleProtocol.dtSetLabel === "string"
     && normalized.simpleProtocol.dtLabels
     && typeof normalized.simpleProtocol.dtLabels === "object";
   if (!hasValidProtocol) {
@@ -460,6 +488,7 @@ function renderSimpleProtocolSummary() {
   }
   const dtRows = [];
   const dtLabels = state.simpleProtocol && state.simpleProtocol.dtLabels ? state.simpleProtocol.dtLabels : {};
+  const selectedSetLabel = state.simpleProtocol && state.simpleProtocol.dtSetLabel ? state.simpleProtocol.dtSetLabel : "";
   const keys = [
     { id: "dtUsual1", label: "DT usuelle 1" },
     { id: "dtUsual2", label: "DT usuelle 2" },
@@ -473,6 +502,7 @@ function renderSimpleProtocolSummary() {
   simpleRandomSummary.innerHTML = `
     <strong>Ordre aleatoire des 10 releves actif</strong>
     <span>${titles.join(" -> ")}</span>
+    <span>Set de double tache : ${selectedSetLabel || "non tire"}</span>
     <span>Double tache tiree au sort : ${dtRows.join(" | ")}</span>
   `;
 }
@@ -762,13 +792,14 @@ function unipodalSummary() {
 
 function dualTaskSummary() {
   const labels = state.simpleProtocol && state.simpleProtocol.dtLabels ? state.simpleProtocol.dtLabels : {};
+  const setLabel = state.simpleProtocol && state.simpleProtocol.dtSetLabel ? state.simpleProtocol.dtSetLabel : "";
   const items = [];
   const order = ["dtUsual1", "dtUsual2", "dtFast1", "dtFast2"];
   for (let index = 0; index < order.length; index += 1) {
     const key = order[index];
     if (labels[key]) items.push(labels[key]);
   }
-  return items.join(" | ");
+  return [setLabel, items.join(" | ")].filter(Boolean).join(" | ");
 }
 
 function currentDateIso() {
