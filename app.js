@@ -122,9 +122,13 @@ const defaultState = {
   notes: "",
   values: {},
   simpleValues: {},
+  simpleStrength: {
+    chair5Time: "",
+    impossibleWithoutHands: false,
+    note: "",
+  },
   simpleNotes: {
     balance: "",
-    strength: "",
     goals: "",
     activities: "",
     autonomy: "",
@@ -176,6 +180,7 @@ function normalizeState(candidate) {
   const normalized = Object.assign(freshDefaultState(), candidate || {});
   if (!normalized.values || typeof normalized.values !== "object") normalized.values = {};
   if (!normalized.simpleValues || typeof normalized.simpleValues !== "object") normalized.simpleValues = {};
+  if (!normalized.simpleStrength || typeof normalized.simpleStrength !== "object") normalized.simpleStrength = freshDefaultState().simpleStrength;
   if (!normalized.simpleNotes || typeof normalized.simpleNotes !== "object") normalized.simpleNotes = freshDefaultState().simpleNotes;
   if (!normalized.simpleWorkflow || typeof normalized.simpleWorkflow !== "object") normalized.simpleWorkflow = freshDefaultState().simpleWorkflow;
   if (typeof normalized.simpleWorkflow.walkIndex !== "number") normalized.simpleWorkflow.walkIndex = 0;
@@ -388,6 +393,9 @@ function walkCompletedCount() {
 
 function moduleDone(moduleId) {
   if (moduleId === "walk") return walkCompletedCount() === walkSequence.length;
+  if (moduleId === "strength") {
+    return Boolean(numberValue(state.simpleStrength.chair5Time)) || Boolean(String(state.simpleStrength.note || "").trim()) || state.simpleStrength.impossibleWithoutHands;
+  }
   return Boolean(String(state.simpleNotes[moduleId] || "").trim());
 }
 
@@ -414,6 +422,10 @@ function renderSimpleWorkflow() {
   }
   if (moduleId === "walk") {
     renderWalkWorkflow();
+    return;
+  }
+  if (moduleId === "strength") {
+    renderStrengthWorkflow();
     return;
   }
   renderNoteWorkflow(moduleId);
@@ -447,6 +459,42 @@ function renderWalkWorkflow() {
     </article>
   `;
   updateTimerDisplay("simple", measure.id);
+}
+
+function renderStrengthWorkflow() {
+  const timer = getTimer("strength", "chair5");
+  const values = state.simpleStrength;
+  simpleWorkflowProgress.textContent = "Force";
+  simpleWorkflowPrimary.hidden = false;
+  simpleWorkflowPrimary.textContent = "Enregistrer et revenir";
+  simpleWorkflowSecondary.hidden = true;
+  simpleWorkflowCard.innerHTML = `
+    <article class="workflow-note-card" data-scope="strength" data-measure="chair5">
+      <div class="measure-header">
+        <div class="measure-title-row">
+          <h3>5 levers de chaise</h3>
+          <span class="measure-badge">Force</span>
+        </div>
+        <p>Chronometrer 5 levers de chaise et cocher si impossible sans les mains.</p>
+      </div>
+      <div class="measure-body workflow-measure-body">
+        <label class="field">
+          <span>Temps valide (s)</span>
+          <input id="strength-chair5-time" type="number" min="0" step="0.01" inputmode="decimal" value="${values.chair5Time || ""}" placeholder="0,00" />
+        </label>
+        ${renderTimerBox("strength", "chair5", timer)}
+        <label class="choice-inline">
+          <input id="strength-hands-checkbox" type="checkbox" ${values.impossibleWithoutHands ? "checked" : ""} />
+          <span>Impossible sans les mains</span>
+        </label>
+        <label class="field">
+          <span>Note libre</span>
+          <textarea id="strength-note" rows="5" placeholder="Observation, strategie, aide, remarques...">${values.note || ""}</textarea>
+        </label>
+      </div>
+    </article>
+  `;
+  updateTimerDisplay("strength", "chair5");
 }
 
 function renderNoteWorkflow(moduleId) {
@@ -569,11 +617,14 @@ function useTimer(scope, measureId) {
   timer.stopped = true;
   cancelAnimationFrame(timer.raf);
   hideStopOverlay();
-  const values = scope === "simple" ? walkValuesFor(measureId) : tapValuesFor(measureId);
-  values.time = (timer.elapsed / 1000).toFixed(2);
+  const values = scope === "simple" ? walkValuesFor(measureId) : (scope === "strength" ? state.simpleStrength : tapValuesFor(measureId));
+  if (scope === "strength") values.chair5Time = (timer.elapsed / 1000).toFixed(2);
+  else values.time = (timer.elapsed / 1000).toFixed(2);
   saveState();
   if (scope === "simple") {
     advanceWalkWorkflow();
+  } else if (scope === "strength") {
+    renderStrengthWorkflow();
   } else {
     renderTapMeasureList();
   }
@@ -587,8 +638,9 @@ function resetTimer(scope, measureId) {
   timer.stopped = false;
   cancelAnimationFrame(timer.raf);
   if (overlayTimerScope === scope && overlayTimerMeasure === measureId) hideStopOverlay();
-  const values = scope === "simple" ? walkValuesFor(measureId) : tapValuesFor(measureId);
-  values.time = "";
+  const values = scope === "simple" ? walkValuesFor(measureId) : (scope === "strength" ? state.simpleStrength : tapValuesFor(measureId));
+  if (scope === "strength") values.chair5Time = "";
+  else values.time = "";
   if (scope === "tap") values.steps = "";
   saveState();
   renderCurrentMode();
@@ -675,7 +727,7 @@ function simpleWorkbookRecord() {
   const moduleNotes = [];
   for (let index = 0; index < moduleDefinitions.length; index += 1) {
     const moduleId = moduleDefinitions[index].id;
-    if (moduleId === "walk") continue;
+    if (moduleId === "walk" || moduleId === "strength") continue;
     const note = String(state.simpleNotes[moduleId] || "").trim();
     if (note) moduleNotes.push(`${moduleDefinitions[index].label} : ${note}`);
   }
@@ -693,11 +745,12 @@ function simpleWorkbookRecord() {
     B23: cellValues.B23 || "",
     B24: cellValues.B24 || "",
     B31: "DT usuelle : Fruits / legumes | Parties du corps | DT rapide : Vetements | Meubles",
+    G33: state.simpleStrength.chair5Time || "",
     B33: cellValues.B33 || "",
     E33: cellValues.E33 || "",
     B35: cellValues.B35 || "",
     E35: cellValues.E35 || "",
-    A42: moduleNotes.join("\n"),
+    A42: [state.simpleStrength.note ? `Force : ${state.simpleStrength.note}` : "", state.simpleStrength.impossibleWithoutHands ? "Force : impossible sans les mains" : "", moduleNotes.join("\n")].filter(Boolean).join("\n"),
   };
 }
 
@@ -821,6 +874,17 @@ function copyResults() {
 function handleWorkflowPrimary() {
   const moduleId = state.simpleWorkflow.module;
   if (!moduleId || moduleId === "menu" || moduleId === "walk") return;
+  if (moduleId === "strength") {
+    const timeInput = document.getElementById("strength-chair5-time");
+    const checkbox = document.getElementById("strength-hands-checkbox");
+    const noteInput = document.getElementById("strength-note");
+    state.simpleStrength.chair5Time = timeInput ? timeInput.value : state.simpleStrength.chair5Time;
+    state.simpleStrength.impossibleWithoutHands = checkbox ? checkbox.checked : state.simpleStrength.impossibleWithoutHands;
+    state.simpleStrength.note = noteInput ? noteInput.value : state.simpleStrength.note;
+    saveState();
+    returnToSimpleMenu();
+    return;
+  }
   const textarea = document.getElementById("simple-module-note");
   state.simpleNotes[moduleId] = textarea ? textarea.value : "";
   saveState();
