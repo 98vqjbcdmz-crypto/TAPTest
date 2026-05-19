@@ -128,7 +128,7 @@ const defaultState = {
     note: "",
   },
   simpleAutonomy: {
-    adl: { toilette: false, habillage: false, alimentation: false, transferts: false, continence: false, deplacements: false },
+    adl: { toilette: false, habillage: false, alimentation: false, transferts: false, continence: false, deplacements: false, releverSol: false },
     iadl: { telephone: false, courses: false, repas: false, menage: false, lessive: false, transports: false, traitement: false, finances: false },
     note: "",
   },
@@ -521,6 +521,7 @@ function renderAutonomyWorkflow() {
     ["transferts", "Transferts"],
     ["continence", "Continence"],
     ["deplacements", "Deplacements"],
+    ["releverSol", "Relever du sol"],
   ];
   const iadlItems = [
     ["telephone", "Telephone"],
@@ -798,7 +799,7 @@ function currentDateIso() {
 }
 
 function autonomySummary() {
-  const adlLabels = { toilette: "Toilette", habillage: "Habillage", alimentation: "Alimentation", transferts: "Transferts", continence: "Continence", deplacements: "Deplacements" };
+  const adlLabels = { toilette: "Toilette", habillage: "Habillage", alimentation: "Alimentation", transferts: "Transferts", continence: "Continence", deplacements: "Deplacements", releverSol: "Relever du sol" };
   const iadlLabels = { telephone: "Telephone", courses: "Courses", repas: "Preparation repas", menage: "Menage", lessive: "Lessive", transports: "Transports", traitement: "Traitement", finances: "Finances" };
   const adl = Object.keys(adlLabels).filter((key) => state.simpleAutonomy.adl && state.simpleAutonomy.adl[key]).map((key) => adlLabels[key]);
   const iadl = Object.keys(iadlLabels).filter((key) => state.simpleAutonomy.iadl && state.simpleAutonomy.iadl[key]).map((key) => iadlLabels[key]);
