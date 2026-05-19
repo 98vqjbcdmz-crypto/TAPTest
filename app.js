@@ -127,6 +127,11 @@ const defaultState = {
     impossibleWithoutHands: false,
     note: "",
   },
+  simpleAutonomy: {
+    adl: { toilette: false, habillage: false, alimentation: false, transferts: false, continence: false, deplacements: false },
+    iadl: { telephone: false, courses: false, repas: false, menage: false, lessive: false, transports: false, traitement: false, finances: false },
+    note: "",
+  },
   simpleNotes: {
     balance: "",
     goals: "",
@@ -181,6 +186,7 @@ function normalizeState(candidate) {
   if (!normalized.values || typeof normalized.values !== "object") normalized.values = {};
   if (!normalized.simpleValues || typeof normalized.simpleValues !== "object") normalized.simpleValues = {};
   if (!normalized.simpleStrength || typeof normalized.simpleStrength !== "object") normalized.simpleStrength = freshDefaultState().simpleStrength;
+  if (!normalized.simpleAutonomy || typeof normalized.simpleAutonomy !== "object") normalized.simpleAutonomy = freshDefaultState().simpleAutonomy;
   if (!normalized.simpleNotes || typeof normalized.simpleNotes !== "object") normalized.simpleNotes = freshDefaultState().simpleNotes;
   if (!normalized.simpleWorkflow || typeof normalized.simpleWorkflow !== "object") normalized.simpleWorkflow = freshDefaultState().simpleWorkflow;
   if (typeof normalized.simpleWorkflow.walkIndex !== "number") normalized.simpleWorkflow.walkIndex = 0;
@@ -396,6 +402,11 @@ function moduleDone(moduleId) {
   if (moduleId === "strength") {
     return Boolean(numberValue(state.simpleStrength.chair5Time)) || Boolean(String(state.simpleStrength.note || "").trim()) || state.simpleStrength.impossibleWithoutHands;
   }
+  if (moduleId === "autonomy") {
+    const adl = state.simpleAutonomy.adl || {};
+    const iadl = state.simpleAutonomy.iadl || {};
+    return Object.values(adl).some(Boolean) || Object.values(iadl).some(Boolean) || Boolean(String(state.simpleAutonomy.note || "").trim());
+  }
   return Boolean(String(state.simpleNotes[moduleId] || "").trim());
 }
 
@@ -426,6 +437,10 @@ function renderSimpleWorkflow() {
   }
   if (moduleId === "strength") {
     renderStrengthWorkflow();
+    return;
+  }
+  if (moduleId === "autonomy") {
+    renderAutonomyWorkflow();
     return;
   }
   renderNoteWorkflow(moduleId);
@@ -495,6 +510,71 @@ function renderStrengthWorkflow() {
     </article>
   `;
   updateTimerDisplay("strength", "chair5");
+}
+
+function renderAutonomyWorkflow() {
+  const values = state.simpleAutonomy;
+  const adlItems = [
+    ["toilette", "Toilette"],
+    ["habillage", "Habillage"],
+    ["alimentation", "Alimentation"],
+    ["transferts", "Transferts"],
+    ["continence", "Continence"],
+    ["deplacements", "Deplacements"],
+  ];
+  const iadlItems = [
+    ["telephone", "Telephone"],
+    ["courses", "Courses"],
+    ["repas", "Preparation des repas"],
+    ["menage", "Menage"],
+    ["lessive", "Lessive"],
+    ["transports", "Transports"],
+    ["traitement", "Traitement"],
+    ["finances", "Finances"],
+  ];
+  simpleWorkflowProgress.textContent = "Autonomie";
+  simpleWorkflowPrimary.hidden = false;
+  simpleWorkflowPrimary.textContent = "Enregistrer et revenir";
+  simpleWorkflowSecondary.hidden = true;
+  simpleWorkflowCard.innerHTML = `
+    <article class="workflow-note-card">
+      <div class="measure-header">
+        <div class="measure-title-row">
+          <h3>ADL / IADL</h3>
+          <span class="measure-badge">Autonomie</span>
+        </div>
+        <p>Cocher les items pertinents puis ajouter une note libre si besoin.</p>
+      </div>
+      <div class="measure-body">
+        <div class="autonomy-section">
+          <strong>ADL</strong>
+          <div class="autonomy-grid">
+            ${adlItems.map(([key, label]) => `
+              <label class="choice-inline">
+                <input type="checkbox" data-autonomy-group="adl" data-autonomy-key="${key}" ${values.adl[key] ? "checked" : ""} />
+                <span>${label}</span>
+              </label>
+            `).join("")}
+          </div>
+        </div>
+        <div class="autonomy-section">
+          <strong>IADL</strong>
+          <div class="autonomy-grid">
+            ${iadlItems.map(([key, label]) => `
+              <label class="choice-inline">
+                <input type="checkbox" data-autonomy-group="iadl" data-autonomy-key="${key}" ${values.iadl[key] ? "checked" : ""} />
+                <span>${label}</span>
+              </label>
+            `).join("")}
+          </div>
+        </div>
+        <label class="field">
+          <span>Note libre</span>
+          <textarea id="autonomy-note" rows="5" placeholder="Aide humaine, supervision, precision utile...">${values.note || ""}</textarea>
+        </label>
+      </div>
+    </article>
+  `;
 }
 
 function renderNoteWorkflow(moduleId) {
@@ -717,6 +797,17 @@ function currentDateIso() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function autonomySummary() {
+  const adlLabels = { toilette: "Toilette", habillage: "Habillage", alimentation: "Alimentation", transferts: "Transferts", continence: "Continence", deplacements: "Deplacements" };
+  const iadlLabels = { telephone: "Telephone", courses: "Courses", repas: "Preparation repas", menage: "Menage", lessive: "Lessive", transports: "Transports", traitement: "Traitement", finances: "Finances" };
+  const adl = Object.keys(adlLabels).filter((key) => state.simpleAutonomy.adl && state.simpleAutonomy.adl[key]).map((key) => adlLabels[key]);
+  const iadl = Object.keys(iadlLabels).filter((key) => state.simpleAutonomy.iadl && state.simpleAutonomy.iadl[key]).map((key) => iadlLabels[key]);
+  const parts = [];
+  if (adl.length) parts.push(`ADL : ${adl.join(", ")}`);
+  if (iadl.length) parts.push(`IADL : ${iadl.join(", ")}`);
+  return parts.join(" | ");
+}
+
 function simpleWorkbookRecord() {
   const cellValues = {};
   for (let index = 0; index < walkSequence.length; index += 1) {
@@ -727,7 +818,7 @@ function simpleWorkbookRecord() {
   const moduleNotes = [];
   for (let index = 0; index < moduleDefinitions.length; index += 1) {
     const moduleId = moduleDefinitions[index].id;
-    if (moduleId === "walk" || moduleId === "strength") continue;
+    if (moduleId === "walk" || moduleId === "strength" || moduleId === "autonomy") continue;
     const note = String(state.simpleNotes[moduleId] || "").trim();
     if (note) moduleNotes.push(`${moduleDefinitions[index].label} : ${note}`);
   }
@@ -750,7 +841,7 @@ function simpleWorkbookRecord() {
     E33: cellValues.E33 || "",
     B35: cellValues.B35 || "",
     E35: cellValues.E35 || "",
-    A42: [state.simpleStrength.note ? `Force : ${state.simpleStrength.note}` : "", state.simpleStrength.impossibleWithoutHands ? "Force : impossible sans les mains" : "", moduleNotes.join("\n")].filter(Boolean).join("\n"),
+    A42: [state.simpleStrength.note ? `Force : ${state.simpleStrength.note}` : "", state.simpleStrength.impossibleWithoutHands ? "Force : impossible sans les mains" : "", autonomySummary(), state.simpleAutonomy.note ? `Autonomie : ${state.simpleAutonomy.note}` : "", moduleNotes.join("\n")].filter(Boolean).join("\n"),
   };
 }
 
@@ -881,6 +972,18 @@ function handleWorkflowPrimary() {
     state.simpleStrength.chair5Time = timeInput ? timeInput.value : state.simpleStrength.chair5Time;
     state.simpleStrength.impossibleWithoutHands = checkbox ? checkbox.checked : state.simpleStrength.impossibleWithoutHands;
     state.simpleStrength.note = noteInput ? noteInput.value : state.simpleStrength.note;
+    saveState();
+    returnToSimpleMenu();
+    return;
+  }
+  if (moduleId === "autonomy") {
+    eachNode("[data-autonomy-group]", (input) => {
+      const group = input.dataset.autonomyGroup;
+      const key = input.dataset.autonomyKey;
+      state.simpleAutonomy[group][key] = Boolean(input.checked);
+    });
+    const noteInput = document.getElementById("autonomy-note");
+    state.simpleAutonomy.note = noteInput ? noteInput.value : state.simpleAutonomy.note;
     saveState();
     returnToSimpleMenu();
     return;
