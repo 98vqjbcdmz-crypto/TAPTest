@@ -87,7 +87,7 @@ const walkSequence = [
     label: "DT usuelle - Parties du corps",
     badge: "DT",
     instruction: "Marche usuelle sur 4 m lances avec enumeration Parties du corps.",
-    excelCell: "E33",
+    excelCell: "D33",
   },
   {
     id: "dtFastClothes",
@@ -101,7 +101,7 @@ const walkSequence = [
     label: "DT rapide - Meubles",
     badge: "DT",
     instruction: "Marche rapide securisee sur 4 m lances avec enumeration Meubles.",
-    excelCell: "E35",
+    excelCell: "D35",
   },
 ];
 
@@ -939,9 +939,9 @@ function simpleWorkbookRecord() {
     B31: "DT usuelle : Fruits / legumes | Parties du corps | DT rapide : Vetements | Meubles",
     G33: state.simpleStrength.chair5Time || "",
     B33: cellValues.B33 || "",
-    E33: cellValues.E33 || "",
+    D33: cellValues.D33 || "",
     B35: cellValues.B35 || "",
-    E35: cellValues.E35 || "",
+    D35: cellValues.D35 || "",
     A42: [balanceSummary(), state.simpleBalance.note ? `Equilibre : ${state.simpleBalance.note}` : "", state.simpleStrength.note ? `Force : ${state.simpleStrength.note}` : "", state.simpleStrength.impossibleWithoutHands ? "Force : impossible sans les mains" : "", autonomySummary(), state.simpleAutonomy.note ? `Autonomie : ${state.simpleAutonomy.note}` : "", moduleNotes.join("\n")].filter(Boolean).join("\n"),
   };
 }
