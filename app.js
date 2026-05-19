@@ -475,7 +475,8 @@ function renderWalkWorkflow() {
   const values = walkValuesFor(measure.id);
   const timer = getTimer("simple", measure.id);
   simpleWorkflowProgress.textContent = `Marche ${index + 1} / ${walkSequence.length}`;
-  simpleWorkflowPrimary.hidden = true;
+  simpleWorkflowPrimary.hidden = false;
+  simpleWorkflowPrimary.textContent = index >= walkSequence.length - 1 ? "Enregistrer et terminer" : "Enregistrer et suivant";
   simpleWorkflowSecondary.hidden = true;
   simpleWorkflowCard.innerHTML = `
     <article class="workflow-measure-card" data-scope="simple" data-measure="${measure.id}">
@@ -781,7 +782,7 @@ function useTimer(scope, measureId) {
   else values.time = (timer.elapsed / 1000).toFixed(2);
   saveState();
   if (scope === "simple") {
-    advanceWalkWorkflow();
+    renderWalkWorkflow();
   } else if (scope === "strength") {
     renderStrengthWorkflow();
   } else {
@@ -1064,7 +1065,16 @@ function copyResults() {
 
 function handleWorkflowPrimary() {
   const moduleId = state.simpleWorkflow.module;
-  if (!moduleId || moduleId === "menu" || moduleId === "walk") return;
+  if (!moduleId || moduleId === "menu") return;
+  if (moduleId === "walk") {
+    const measure = walkSequence[Math.max(0, Math.min(state.simpleWorkflow.walkIndex, walkSequence.length - 1))];
+    const input = document.querySelector(`[data-field="time"][data-scope="simple"][data-measure="${measure.id}"]`);
+    const values = walkValuesFor(measure.id);
+    values.time = input ? input.value : values.time;
+    saveState();
+    advanceWalkWorkflow();
+    return;
+  }
   if (moduleId === "strength") {
     const timeInput = document.getElementById("strength-chair5-time");
     const checkbox = document.getElementById("strength-hands-checkbox");
