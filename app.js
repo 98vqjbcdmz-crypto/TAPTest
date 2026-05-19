@@ -1024,7 +1024,8 @@ async function buildSimpleExcelFile() {
   if (resultSheetFile) {
     const resultSheetXml = await resultSheetFile.async("string");
     const resultDoc = new DOMParser().parseFromString(resultSheetXml, "application/xml");
-    setWorksheetValue(resultDoc, "G4", simpleExportSummaryLines().join("\n"));
+    setWorksheetValue(resultDoc, "A34", simpleExportSummaryLines().join("\n"));
+    setWorksheetValue(resultDoc, "A1", "SYNTHESE EXPORT");
     zip.file("xl/worksheets/sheet2.xml", new XMLSerializer().serializeToString(resultDoc));
   }
 
@@ -1034,8 +1035,8 @@ async function buildSimpleExcelFile() {
     const workbookDoc = new DOMParser().parseFromString(workbookXml, "application/xml");
     const workbookView = workbookDoc.getElementsByTagName("workbookView")[0];
     if (workbookView) {
-      workbookView.setAttribute("firstSheet", "0");
-      workbookView.setAttribute("activeTab", "0");
+      workbookView.setAttribute("firstSheet", "1");
+      workbookView.setAttribute("activeTab", "1");
     }
     const calcPr = workbookDoc.getElementsByTagName("calcPr")[0];
     if (calcPr) {
