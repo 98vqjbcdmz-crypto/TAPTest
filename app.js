@@ -172,6 +172,13 @@ let overlayTimerScope = "";
 let overlayTimerMeasure = "";
 let overlayMode = "";
 
+function smoothScrollToNode(node) {
+  if (!node || typeof node.scrollIntoView !== "function") return;
+  window.setTimeout(() => {
+    node.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, 40);
+}
+
 function eachNode(selector, callback) {
   const nodes = document.querySelectorAll(selector);
   for (let index = 0; index < nodes.length; index += 1) callback(nodes[index]);
@@ -622,12 +629,14 @@ function openSimpleModule(moduleId) {
   }
   saveState();
   renderSimpleWorkflow();
+  smoothScrollToNode(simpleWorkflowScreen);
 }
 
 function returnToSimpleMenu() {
   state.simpleWorkflow.module = "menu";
   saveState();
   renderSimpleWorkflow();
+  smoothScrollToNode(simpleMenuScreen);
 }
 
 function updateTimerDisplay(scope, measureId) {
