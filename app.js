@@ -909,6 +909,29 @@ function autonomySummary() {
   return parts.join(" | ");
 }
 
+function simpleExportSummaryLines() {
+  return [
+    `Identifiant : ${state.participantId.trim() || ""}`,
+    `Date : ${currentDateIso()}`,
+    `Usuelle 1 : ${walkValuesFor("usual1").time || ""}`,
+    `Usuelle 2 : ${walkValuesFor("usual2").time || ""}`,
+    `Usuelle 3 : ${walkValuesFor("usual3").time || ""}`,
+    `Rapide 1 : ${walkValuesFor("fast1").time || ""}`,
+    `Rapide 2 : ${walkValuesFor("fast2").time || ""}`,
+    `Rapide 3 : ${walkValuesFor("fast3").time || ""}`,
+    `DT usuelle Fruits / legumes : ${walkValuesFor("dtUsualFruits").time || ""}`,
+    `DT usuelle Parties du corps : ${walkValuesFor("dtUsualBody").time || ""}`,
+    `DT rapide Vetements : ${walkValuesFor("dtFastClothes").time || ""}`,
+    `DT rapide Meubles : ${walkValuesFor("dtFastFurniture").time || ""}`,
+    `5 levers de chaise : ${state.simpleStrength.chair5Time || ""}`,
+    balanceSummary(),
+    autonomySummary(),
+    state.simpleStrength.note ? `Force : ${state.simpleStrength.note}` : "",
+    state.simpleBalance.note ? `Equilibre : ${state.simpleBalance.note}` : "",
+    state.simpleAutonomy.note ? `Autonomie : ${state.simpleAutonomy.note}` : "",
+  ].filter(Boolean);
+}
+
 function simpleWorkbookRecord() {
   const cellValues = {};
   for (let index = 0; index < walkSequence.length; index += 1) {
@@ -996,6 +1019,14 @@ async function buildSimpleExcelFile() {
   const refs = Object.keys(record);
   for (let index = 0; index < refs.length; index += 1) setWorksheetValue(doc, refs[index], record[refs[index]]);
   zip.file("xl/worksheets/sheet1.xml", new XMLSerializer().serializeToString(doc));
+
+  const resultSheetFile = zip.file("xl/worksheets/sheet2.xml");
+  if (resultSheetFile) {
+    const resultSheetXml = await resultSheetFile.async("string");
+    const resultDoc = new DOMParser().parseFromString(resultSheetXml, "application/xml");
+    setWorksheetValue(resultDoc, "G4", simpleExportSummaryLines().join("\n"));
+    zip.file("xl/worksheets/sheet2.xml", new XMLSerializer().serializeToString(resultDoc));
+  }
 
   const workbookFile = zip.file("xl/workbook.xml");
   if (workbookFile) {
