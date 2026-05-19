@@ -1005,49 +1005,118 @@ function setWorksheetValue(doc, ref, rawValue) {
 function workbookFileName() {
   const participant = state.participantId.trim() || "sans-identifiant";
   const stamp = new Date().toISOString().replace(/[:T]/g, "-").slice(0, 16);
-  return `${participant.replace(/[^a-z0-9_-]+/gi, "_")}_${stamp}_fiche_4m_usuel_rapide_complexite.xlsx`;
+  return `${participant.replace(/[^a-z0-9_-]+/gi, "_")}_${stamp}_fiche_mesures_simples.xlsx`;
+}
+
+function setSheetCell(sheet, ref, value) {
+  if (value == null || value === "") return;
+  if (typeof value === "number" && Number.isFinite(value)) {
+    sheet[ref] = { t: "n", v: value };
+    return;
+  }
+  sheet[ref] = { t: "s", v: String(value) };
+}
+
+function buildGeneratedWorkbook() {
+  if (typeof XLSX === "undefined") throw new Error("Bibliotheque Excel indisponible");
+
+  const workbook = XLSX.utils.book_new();
+  workbook.Workbook = workbook.Workbook || {};
+  workbook.Workbook.Views = [{ activeTab: 0 }];
+
+  const summaryRows = [
+    ["Synthese export"],
+    ["Identifiant", state.participantId.trim() || ""],
+    ["Date", currentDateIso()],
+    [],
+    ["Marche"],
+    ["Usuelle 1", walkValuesFor("usual1").time || ""],
+    ["Usuelle 2", walkValuesFor("usual2").time || ""],
+    ["Usuelle 3", walkValuesFor("usual3").time || ""],
+    ["Rapide 1", walkValuesFor("fast1").time || ""],
+    ["Rapide 2", walkValuesFor("fast2").time || ""],
+    ["Rapide 3", walkValuesFor("fast3").time || ""],
+    ["DT usuelle Fruits / legumes", walkValuesFor("dtUsualFruits").time || ""],
+    ["DT usuelle Parties du corps", walkValuesFor("dtUsualBody").time || ""],
+    ["DT rapide Vetements", walkValuesFor("dtFastClothes").time || ""],
+    ["DT rapide Meubles", walkValuesFor("dtFastFurniture").time || ""],
+    [],
+    ["Force"],
+    ["5 levers de chaise", state.simpleStrength.chair5Time || ""],
+    ["Impossible sans les mains", state.simpleStrength.impossibleWithoutHands ? "Oui" : "Non"],
+    ["Note force", state.simpleStrength.note || ""],
+    [],
+    ["Equilibre"],
+    ["RPdS", state.simpleBalance.rpds || ""],
+    ["1/2 tandem", state.simpleBalance.semiTandem || ""],
+    ["Tandem", state.simpleBalance.tandem || ""],
+    ["SPPB equilibre", balanceScoreFromValues(state.simpleBalance)],
+    ["Note equilibre", state.simpleBalance.note || ""],
+    [],
+    ["Autonomie"],
+    ["Resume autonomie", autonomySummary() || ""],
+    ["Note autonomie", state.simpleAutonomy.note || ""],
+    [],
+    ["Autres notes"],
+    ["Objectifs", state.simpleNotes.goals || ""],
+    ["Activites", state.simpleNotes.activities || ""],
+    ["Analytique", state.simpleNotes.analytic || ""],
+  ];
+  const summarySheet = XLSX.utils.aoa_to_sheet(summaryRows);
+  summarySheet["!cols"] = [{ wch: 34 }, { wch: 22 }];
+  XLSX.utils.book_append_sheet(workbook, summarySheet, "Synthese export");
+
+  const recueilSheet = XLSX.utils.aoa_to_sheet([]);
+  setSheetCell(recueilSheet, "A1", "Recueil brut export");
+  setSheetCell(recueilSheet, "A3", "Identifiant");
+  setSheetCell(recueilSheet, "B3", state.participantId.trim() || "");
+  setSheetCell(recueilSheet, "D3", "Date");
+  setSheetCell(recueilSheet, "E3", currentDateIso());
+  setSheetCell(recueilSheet, "A5", "Usuelle 1");
+  setSheetCell(recueilSheet, "B5", numberValue(walkValuesFor("usual1").time));
+  setSheetCell(recueilSheet, "A6", "Usuelle 2");
+  setSheetCell(recueilSheet, "B6", numberValue(walkValuesFor("usual2").time));
+  setSheetCell(recueilSheet, "A7", "Usuelle 3");
+  setSheetCell(recueilSheet, "B7", numberValue(walkValuesFor("usual3").time));
+  setSheetCell(recueilSheet, "A9", "Rapide 1");
+  setSheetCell(recueilSheet, "B9", numberValue(walkValuesFor("fast1").time));
+  setSheetCell(recueilSheet, "A10", "Rapide 2");
+  setSheetCell(recueilSheet, "B10", numberValue(walkValuesFor("fast2").time));
+  setSheetCell(recueilSheet, "A11", "Rapide 3");
+  setSheetCell(recueilSheet, "B11", numberValue(walkValuesFor("fast3").time));
+  setSheetCell(recueilSheet, "A13", "DT usuelle Fruits / legumes");
+  setSheetCell(recueilSheet, "B13", numberValue(walkValuesFor("dtUsualFruits").time));
+  setSheetCell(recueilSheet, "A14", "DT usuelle Parties du corps");
+  setSheetCell(recueilSheet, "B14", numberValue(walkValuesFor("dtUsualBody").time));
+  setSheetCell(recueilSheet, "A15", "DT rapide Vetements");
+  setSheetCell(recueilSheet, "B15", numberValue(walkValuesFor("dtFastClothes").time));
+  setSheetCell(recueilSheet, "A16", "DT rapide Meubles");
+  setSheetCell(recueilSheet, "B16", numberValue(walkValuesFor("dtFastFurniture").time));
+  setSheetCell(recueilSheet, "A18", "5 levers de chaise");
+  setSheetCell(recueilSheet, "B18", numberValue(state.simpleStrength.chair5Time));
+  setSheetCell(recueilSheet, "A20", "RPdS");
+  setSheetCell(recueilSheet, "B20", numberValue(state.simpleBalance.rpds));
+  setSheetCell(recueilSheet, "A21", "1/2 tandem");
+  setSheetCell(recueilSheet, "B21", numberValue(state.simpleBalance.semiTandem));
+  setSheetCell(recueilSheet, "A22", "Tandem");
+  setSheetCell(recueilSheet, "B22", numberValue(state.simpleBalance.tandem));
+  setSheetCell(recueilSheet, "A23", "SPPB equilibre");
+  setSheetCell(recueilSheet, "B23", balanceScoreFromValues(state.simpleBalance));
+  setSheetCell(recueilSheet, "A25", "Autonomie");
+  setSheetCell(recueilSheet, "B25", autonomySummary() || "");
+  recueilSheet["!cols"] = [{ wch: 34 }, { wch: 18 }];
+  recueilSheet["!ref"] = "A1:B25";
+  XLSX.utils.book_append_sheet(workbook, recueilSheet, "Recueil brut");
+
+  return workbook;
 }
 
 async function buildSimpleExcelFile() {
-  if (typeof JSZip === "undefined") throw new Error("JSZip indisponible");
-  const response = await fetch("./assets/fiche_4m_usuel_rapide_complexite_template.xlsx");
-  if (!response.ok) throw new Error("Modele Excel introuvable");
-  const zip = await JSZip.loadAsync(await response.arrayBuffer());
-  const sheetXml = await zip.file("xl/worksheets/sheet1.xml").async("string");
-  const doc = new DOMParser().parseFromString(sheetXml, "application/xml");
-  const record = simpleWorkbookRecord();
-  const refs = Object.keys(record);
-  for (let index = 0; index < refs.length; index += 1) setWorksheetValue(doc, refs[index], record[refs[index]]);
-  zip.file("xl/worksheets/sheet1.xml", new XMLSerializer().serializeToString(doc));
-
-  const resultSheetFile = zip.file("xl/worksheets/sheet2.xml");
-  if (resultSheetFile) {
-    const resultSheetXml = await resultSheetFile.async("string");
-    const resultDoc = new DOMParser().parseFromString(resultSheetXml, "application/xml");
-    setWorksheetValue(resultDoc, "A34", simpleExportSummaryLines().join("\n"));
-    setWorksheetValue(resultDoc, "A1", "SYNTHESE EXPORT");
-    zip.file("xl/worksheets/sheet2.xml", new XMLSerializer().serializeToString(resultDoc));
-  }
-
-  const workbookFile = zip.file("xl/workbook.xml");
-  if (workbookFile) {
-    const workbookXml = await workbookFile.async("string");
-    const workbookDoc = new DOMParser().parseFromString(workbookXml, "application/xml");
-    const workbookView = workbookDoc.getElementsByTagName("workbookView")[0];
-    if (workbookView) {
-      workbookView.setAttribute("firstSheet", "1");
-      workbookView.setAttribute("activeTab", "1");
-    }
-    const calcPr = workbookDoc.getElementsByTagName("calcPr")[0];
-    if (calcPr) {
-      calcPr.setAttribute("calcMode", "auto");
-      calcPr.setAttribute("fullCalcOnLoad", "1");
-      calcPr.setAttribute("forceFullCalc", "1");
-    }
-    zip.file("xl/workbook.xml", new XMLSerializer().serializeToString(workbookDoc));
-  }
-
-  const blob = await zip.generateAsync({ type: "blob" });
+  const workbook = buildGeneratedWorkbook();
+  const arrayBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+  const blob = new Blob([arrayBuffer], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
   return { blob, filename: workbookFileName() };
 }
 
