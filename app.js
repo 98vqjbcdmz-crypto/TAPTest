@@ -981,7 +981,8 @@ function setWorksheetValue(doc, ref, rawValue) {
 
 function workbookFileName() {
   const participant = state.participantId.trim() || "sans-identifiant";
-  return `${participant.replace(/[^a-z0-9_-]+/gi, "_")}_fiche_4m_usuel_rapide_complexite.xlsx`;
+  const stamp = new Date().toISOString().replace(/[:T]/g, "-").slice(0, 16);
+  return `${participant.replace(/[^a-z0-9_-]+/gi, "_")}_${stamp}_fiche_4m_usuel_rapide_complexite.xlsx`;
 }
 
 async function buildSimpleExcelFile() {
@@ -995,6 +996,25 @@ async function buildSimpleExcelFile() {
   const refs = Object.keys(record);
   for (let index = 0; index < refs.length; index += 1) setWorksheetValue(doc, refs[index], record[refs[index]]);
   zip.file("xl/worksheets/sheet1.xml", new XMLSerializer().serializeToString(doc));
+
+  const workbookFile = zip.file("xl/workbook.xml");
+  if (workbookFile) {
+    const workbookXml = await workbookFile.async("string");
+    const workbookDoc = new DOMParser().parseFromString(workbookXml, "application/xml");
+    const workbookView = workbookDoc.getElementsByTagName("workbookView")[0];
+    if (workbookView) {
+      workbookView.setAttribute("firstSheet", "0");
+      workbookView.setAttribute("activeTab", "0");
+    }
+    const calcPr = workbookDoc.getElementsByTagName("calcPr")[0];
+    if (calcPr) {
+      calcPr.setAttribute("calcMode", "auto");
+      calcPr.setAttribute("fullCalcOnLoad", "1");
+      calcPr.setAttribute("forceFullCalc", "1");
+    }
+    zip.file("xl/workbook.xml", new XMLSerializer().serializeToString(workbookDoc));
+  }
+
   const blob = await zip.generateAsync({ type: "blob" });
   return { blob, filename: workbookFileName() };
 }
