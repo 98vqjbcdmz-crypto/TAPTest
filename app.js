@@ -132,6 +132,12 @@ const defaultState = {
     iadl: { telephone: false, courses: false, repas: false, menage: false, lessive: false, transports: false, traitement: false, finances: false },
     note: "",
   },
+  simpleBalance: {
+    rpds: "",
+    semiTandem: "",
+    tandem: "",
+    note: "",
+  },
   simpleNotes: {
     balance: "",
     goals: "",
@@ -194,6 +200,7 @@ function normalizeState(candidate) {
   if (!normalized.simpleValues || typeof normalized.simpleValues !== "object") normalized.simpleValues = {};
   if (!normalized.simpleStrength || typeof normalized.simpleStrength !== "object") normalized.simpleStrength = freshDefaultState().simpleStrength;
   if (!normalized.simpleAutonomy || typeof normalized.simpleAutonomy !== "object") normalized.simpleAutonomy = freshDefaultState().simpleAutonomy;
+  if (!normalized.simpleBalance || typeof normalized.simpleBalance !== "object") normalized.simpleBalance = freshDefaultState().simpleBalance;
   if (!normalized.simpleNotes || typeof normalized.simpleNotes !== "object") normalized.simpleNotes = freshDefaultState().simpleNotes;
   if (!normalized.simpleWorkflow || typeof normalized.simpleWorkflow !== "object") normalized.simpleWorkflow = freshDefaultState().simpleWorkflow;
   if (typeof normalized.simpleWorkflow.walkIndex !== "number") normalized.simpleWorkflow.walkIndex = 0;
@@ -409,6 +416,10 @@ function moduleDone(moduleId) {
   if (moduleId === "strength") {
     return Boolean(numberValue(state.simpleStrength.chair5Time)) || Boolean(String(state.simpleStrength.note || "").trim()) || state.simpleStrength.impossibleWithoutHands;
   }
+  if (moduleId === "balance") {
+    const values = state.simpleBalance || {};
+    return Boolean(numberValue(values.rpds)) || Boolean(numberValue(values.semiTandem)) || Boolean(numberValue(values.tandem)) || Boolean(String(values.note || "").trim());
+  }
   if (moduleId === "autonomy") {
     const adl = state.simpleAutonomy.adl || {};
     const iadl = state.simpleAutonomy.iadl || {};
@@ -446,6 +457,10 @@ function renderSimpleWorkflow() {
     renderStrengthWorkflow();
     return;
   }
+  if (moduleId === "balance") {
+    renderBalanceWorkflow();
+    return;
+  }
   if (moduleId === "autonomy") {
     renderAutonomyWorkflow();
     return;
@@ -481,6 +496,60 @@ function renderWalkWorkflow() {
     </article>
   `;
   updateTimerDisplay("simple", measure.id);
+}
+
+function balanceScoreFromValues(values) {
+  const rpds = numberValue(values && values.rpds);
+  const semiTandem = numberValue(values && values.semiTandem);
+  const tandem = numberValue(values && values.tandem);
+  if (!Number.isFinite(rpds) || rpds < 10) return 0;
+  if (!Number.isFinite(semiTandem) || semiTandem < 10) return 1;
+  if (!Number.isFinite(tandem)) return 2;
+  if (tandem >= 10) return 4;
+  if (tandem >= 3) return 3;
+  return 2;
+}
+
+function renderBalanceWorkflow() {
+  const values = state.simpleBalance;
+  const score = balanceScoreFromValues(values);
+  simpleWorkflowProgress.textContent = "Equilibre";
+  simpleWorkflowPrimary.hidden = false;
+  simpleWorkflowPrimary.textContent = "Enregistrer et revenir";
+  simpleWorkflowSecondary.hidden = true;
+  simpleWorkflowCard.innerHTML = `
+    <article class="workflow-note-card">
+      <div class="measure-header">
+        <div class="measure-title-row">
+          <h3>SPPB equilibre</h3>
+          <span class="measure-badge">Equilibre</span>
+        </div>
+        <p>Renseigner les temps tenus pour RPdS, 1/2 tandem et tandem. Le score SPPB est calcule automatiquement.</p>
+      </div>
+      <div class="measure-body">
+        <label class="field">
+          <span>RPdS (s)</span>
+          <input id="balance-rpds" type="number" min="0" step="0.1" inputmode="decimal" value="${values.rpds || ""}" placeholder="0,0" />
+        </label>
+        <label class="field">
+          <span>1/2 tandem (s)</span>
+          <input id="balance-semi-tandem" type="number" min="0" step="0.1" inputmode="decimal" value="${values.semiTandem || ""}" placeholder="0,0" />
+        </label>
+        <label class="field">
+          <span>Tandem (s)</span>
+          <input id="balance-tandem" type="number" min="0" step="0.1" inputmode="decimal" value="${values.tandem || ""}" placeholder="0,0" />
+        </label>
+        <div class="computed wide">
+          <span>Score SPPB equilibre</span>
+          <strong id="balance-score-output">${score} / 4</strong>
+        </div>
+        <label class="field">
+          <span>Note libre</span>
+          <textarea id="balance-note" rows="5" placeholder="Aides, desequilibre, strategie, precision utile...">${values.note || ""}</textarea>
+        </label>
+      </div>
+    </article>
+  `;
 }
 
 function renderStrengthWorkflow() {
@@ -748,6 +817,17 @@ function advanceWalkWorkflow() {
 }
 
 function handleValueInput(event) {
+  const target = event.target;
+  if (target && target.id && (target.id === "balance-rpds" || target.id === "balance-semi-tandem" || target.id === "balance-tandem" || target.id === "balance-note")) {
+    if (target.id === "balance-rpds") state.simpleBalance.rpds = target.value;
+    if (target.id === "balance-semi-tandem") state.simpleBalance.semiTandem = target.value;
+    if (target.id === "balance-tandem") state.simpleBalance.tandem = target.value;
+    if (target.id === "balance-note") state.simpleBalance.note = target.value;
+    saveState();
+    const output = document.getElementById("balance-score-output");
+    if (output) output.textContent = `${balanceScoreFromValues(state.simpleBalance)} / 4`;
+    return;
+  }
   const input = closestFieldInput(event.target);
   if (!input) return;
   const scope = input.dataset.scope;
@@ -807,6 +887,16 @@ function currentDateIso() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function balanceSummary() {
+  const values = state.simpleBalance || {};
+  const parts = [];
+  if (String(values.rpds || "").trim()) parts.push(`RPdS : ${values.rpds} s`);
+  if (String(values.semiTandem || "").trim()) parts.push(`1/2 tandem : ${values.semiTandem} s`);
+  if (String(values.tandem || "").trim()) parts.push(`Tandem : ${values.tandem} s`);
+  if (parts.length) parts.push(`SPPB equilibre : ${balanceScoreFromValues(values)} / 4`);
+  return parts.join(" | ");
+}
+
 function autonomySummary() {
   const adlLabels = { toilette: "Toilette", habillage: "Habillage", alimentation: "Alimentation", transferts: "Transferts", continence: "Continence", deplacements: "Deplacements", releverSol: "Relever du sol" };
   const iadlLabels = { telephone: "Telephone", courses: "Courses", repas: "Preparation repas", menage: "Menage", lessive: "Lessive", transports: "Transports", traitement: "Traitement", finances: "Finances" };
@@ -828,7 +918,7 @@ function simpleWorkbookRecord() {
   const moduleNotes = [];
   for (let index = 0; index < moduleDefinitions.length; index += 1) {
     const moduleId = moduleDefinitions[index].id;
-    if (moduleId === "walk" || moduleId === "strength" || moduleId === "autonomy") continue;
+    if (moduleId === "walk" || moduleId === "strength" || moduleId === "autonomy" || moduleId === "balance") continue;
     const note = String(state.simpleNotes[moduleId] || "").trim();
     if (note) moduleNotes.push(`${moduleDefinitions[index].label} : ${note}`);
   }
@@ -851,7 +941,7 @@ function simpleWorkbookRecord() {
     E33: cellValues.E33 || "",
     B35: cellValues.B35 || "",
     E35: cellValues.E35 || "",
-    A42: [state.simpleStrength.note ? `Force : ${state.simpleStrength.note}` : "", state.simpleStrength.impossibleWithoutHands ? "Force : impossible sans les mains" : "", autonomySummary(), state.simpleAutonomy.note ? `Autonomie : ${state.simpleAutonomy.note}` : "", moduleNotes.join("\n")].filter(Boolean).join("\n"),
+    A42: [balanceSummary(), state.simpleBalance.note ? `Equilibre : ${state.simpleBalance.note}` : "", state.simpleStrength.note ? `Force : ${state.simpleStrength.note}` : "", state.simpleStrength.impossibleWithoutHands ? "Force : impossible sans les mains" : "", autonomySummary(), state.simpleAutonomy.note ? `Autonomie : ${state.simpleAutonomy.note}` : "", moduleNotes.join("\n")].filter(Boolean).join("\n"),
   };
 }
 
@@ -982,6 +1072,19 @@ function handleWorkflowPrimary() {
     state.simpleStrength.chair5Time = timeInput ? timeInput.value : state.simpleStrength.chair5Time;
     state.simpleStrength.impossibleWithoutHands = checkbox ? checkbox.checked : state.simpleStrength.impossibleWithoutHands;
     state.simpleStrength.note = noteInput ? noteInput.value : state.simpleStrength.note;
+    saveState();
+    returnToSimpleMenu();
+    return;
+  }
+  if (moduleId === "balance") {
+    const rpdsInput = document.getElementById("balance-rpds");
+    const semiTandemInput = document.getElementById("balance-semi-tandem");
+    const tandemInput = document.getElementById("balance-tandem");
+    const noteInput = document.getElementById("balance-note");
+    state.simpleBalance.rpds = rpdsInput ? rpdsInput.value : state.simpleBalance.rpds;
+    state.simpleBalance.semiTandem = semiTandemInput ? semiTandemInput.value : state.simpleBalance.semiTandem;
+    state.simpleBalance.tandem = tandemInput ? tandemInput.value : state.simpleBalance.tandem;
+    state.simpleBalance.note = noteInput ? noteInput.value : state.simpleBalance.note;
     saveState();
     returnToSimpleMenu();
     return;
