@@ -3,11 +3,15 @@
   <circle cx="256" cy="256" r="172" fill="#23527c"/>
   <path d="M256 256 L256 104 A152 152 0 0 1 408 256 Z" fill="#0f766e"/>
   <path d="M256 256 L388 256 A132 132 0 0 1 162.66 349.34 Z" fill="#b9403a"/>
-  <circle cx="256" cy="256" r="28" fill="#ffffff"/>
-  <circle cx="256" cy="256" r="12" fill="#23527c"/>
-  <path d="M256 256 L256 110" stroke="#ffffff" stroke-width="18" stroke-linecap="round"/>
-  <path d="M256 256 L371 322" stroke="#ffffff" stroke-width="18" stroke-linecap="round"/>
   <path d="M144 256 A112 112 0 0 1 256 144" fill="none" stroke="#ffffff" stroke-width="12" stroke-linecap="round"/>
   <path d="M164 256 A92 92 0 0 1 256 164" fill="none" stroke="#d9e1e8" stroke-width="6" stroke-dasharray="2 14" stroke-linecap="round"/>
+  <path d="M256 256 L256 110" stroke="#ffffff" stroke-width="18" stroke-linecap="round"/>
+  <path d="M256 256 L371 322" stroke="#ffffff" stroke-width="18" stroke-linecap="round"/>
+  <circle cx="256" cy="256" r="74" fill="#ffffff"/>
+  <circle cx="256" cy="256" r="58" fill="#f5f7fb" stroke="#23527c" stroke-width="10"/>
+  <rect x="236" y="168" width="40" height="26" rx="10" fill="#23527c"/>
+  <path d="M256 256 L256 220" stroke="#23527c" stroke-width="10" stroke-linecap="round"/>
+  <path d="M256 256 L286 270" stroke="#b9403a" stroke-width="10" stroke-linecap="round"/>
+  <circle cx="256" cy="256" r="8" fill="#23527c"/>
   <text x="256" y="438" text-anchor="middle" font-family="Arial, sans-serif" font-size="84" font-weight="700" fill="#23527c">TAP</text>
 </svg>
