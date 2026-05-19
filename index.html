@@ -69,147 +69,40 @@
 
     <section class="entry-panel mode-panel" id="simple-panel" data-panel="simple" hidden>
       <div class="section-heading">
-        <strong>Mesures simples</strong>
-        <p>10 releves de vitesses randomises, TUG arme, reactions parachutes, appuis unipodaux et recueil des douleurs.</p>
+        <strong>Parcours clinique</strong>
+        <p>Menu simple par domaine, puis retour automatique au hub.</p>
       </div>
 
-      <div class="simple-controls">
-        <div class="randomize-row">
-          <button id="simple-randomize" class="primary-action randomize-button" type="button">Generer l'ordre aleatoire des mesures</button>
+      <div id="simple-menu-screen" class="simple-screen">
+        <div class="module-grid" role="group" aria-label="Domaines cliniques">
+          <button class="module-button" type="button" data-module="walk">Marche</button>
+          <button class="module-button" type="button" data-module="balance">Equilibre</button>
+          <button class="module-button" type="button" data-module="strength">Force</button>
+          <button class="module-button" type="button" data-module="goals">Objectifs</button>
+          <button class="module-button" type="button" data-module="activities">Activites</button>
+          <button class="module-button" type="button" data-module="autonomy">Autonomie</button>
+          <button class="module-button" type="button" data-module="analytic">Analytique</button>
         </div>
-        <label class="field simple-distance-field">
-          <span>Distance de marche lancee (m)</span>
-          <input id="simple-walk-distance" type="number" min="1" max="20" step="0.5" inputmode="decimal" value="4" />
-        </label>
+
+        <div id="simple-menu-summary" class="protocol-note"></div>
+
+        <div class="action-row simple-share-row">
+          <button id="share-simple-excel" class="primary-action" type="button">Partager le fichier Excel</button>
+        </div>
       </div>
 
-      <div id="simple-random-summary" class="protocol-note"></div>
-
-      <div id="simple-measure-list" class="measure-list"></div>
-
-      <div class="section-heading">
-        <strong>TUG et recueil clinique</strong>
-        <p>Chronometrage arme, reactions parachutes, appuis unipodaux et douleurs.</p>
-      </div>
-
-      <div id="simple-extra-list" class="measure-list"></div>
-
-      <section class="clinical-panel">
-        <div class="clinical-card">
-          <strong>Reactions parachutes</strong>
-          <div class="choice-block">
-            <span>Anterieure</span>
-            <div class="choice-row">
-              <button class="choice-button" type="button" data-choice-group="parachuteAnt" data-choice-value="OK">OK</button>
-              <button class="choice-button" type="button" data-choice-group="parachuteAnt" data-choice-value="KO">KO</button>
-            </div>
-          </div>
-          <div class="choice-block">
-            <span>Posterieure</span>
-            <div class="choice-row">
-              <button class="choice-button" type="button" data-choice-group="parachutePost" data-choice-value="OK">OK</button>
-              <button class="choice-button" type="button" data-choice-group="parachutePost" data-choice-value="KO">KO</button>
-            </div>
-          </div>
+      <div id="simple-workflow-screen" class="simple-screen" hidden>
+        <div class="workflow-topbar">
+          <button id="simple-back-to-menu" class="secondary-action" type="button">Retour</button>
+          <div id="simple-workflow-progress" class="workflow-progress"></div>
         </div>
 
-        <div class="clinical-card">
-          <strong>Appuis unipodaux</strong>
-          <div class="field-grid">
-            <label class="field">
-              <span>Gauche (s)</span>
-              <input id="simple-unipodal-left" type="number" min="0" step="0.1" inputmode="decimal" placeholder="0,0" />
-            </label>
-            <label class="field">
-              <span>Droit (s)</span>
-              <input id="simple-unipodal-right" type="number" min="0" step="0.1" inputmode="decimal" placeholder="0,0" />
-            </label>
-          </div>
+        <div id="simple-workflow-card" class="workflow-card"></div>
+
+        <div class="action-row workflow-actions">
+          <button id="simple-workflow-primary" class="primary-action" type="button">Valider</button>
+          <button id="simple-workflow-secondary" class="secondary-action" type="button" hidden>Suivant</button>
         </div>
-
-        <div class="clinical-card">
-          <strong>Douleurs</strong>
-          <div class="field-grid">
-            <label class="field">
-              <span>Avant (0-10)</span>
-              <input id="simple-pain-before" type="number" min="0" max="10" step="1" inputmode="numeric" placeholder="0" />
-            </label>
-            <label class="field">
-              <span>Apres (0-10)</span>
-              <input id="simple-pain-after" type="number" min="0" max="10" step="1" inputmode="numeric" placeholder="0" />
-            </label>
-            <label class="field wide">
-              <span>Douleurs - commentaires</span>
-              <textarea id="simple-pain-notes" rows="3" placeholder="Localisation, apparition, majoration en double tache, limitation..."></textarea>
-            </label>
-          </div>
-        </div>
-
-        <div class="clinical-card">
-          <strong>Champs du modele Excel</strong>
-          <div class="field-grid">
-            <label class="field">
-              <span>Age (ans)</span>
-              <input id="simple-age" type="number" min="0" step="1" inputmode="numeric" placeholder="0" />
-            </label>
-            <label class="field">
-              <span>Sexe</span>
-              <input id="simple-sex" type="text" inputmode="text" placeholder="F / M" />
-            </label>
-            <label class="field">
-              <span>Taille (cm)</span>
-              <input id="simple-height" type="number" min="0" step="1" inputmode="numeric" placeholder="0" />
-            </label>
-            <label class="field">
-              <span>Poids (kg)</span>
-              <input id="simple-weight" type="number" min="0" step="0.1" inputmode="decimal" placeholder="0,0" />
-            </label>
-            <label class="field">
-              <span>Evaluateur</span>
-              <input id="simple-evaluator" type="text" inputmode="text" placeholder="SL" />
-            </label>
-            <label class="field">
-              <span>Surface / chaussures</span>
-              <input id="simple-surface" type="text" inputmode="text" placeholder="ex. couloir, baskets" />
-            </label>
-            <label class="field">
-              <span>Elan (m)</span>
-              <input id="simple-lead-in" type="number" min="0" step="0.5" inputmode="decimal" placeholder="2" />
-            </label>
-            <label class="field">
-              <span>Deceleration (m)</span>
-              <input id="simple-slow-down" type="number" min="0" step="0.5" inputmode="decimal" placeholder="2" />
-            </label>
-            <label class="field wide">
-              <span>Diagnostic / contexte</span>
-              <textarea id="simple-context" rows="2" placeholder="Diagnostic, contexte clinique, indication..."></textarea>
-            </label>
-            <label class="field">
-              <span>5TSTS (s)</span>
-              <input id="simple-chair5" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0,00" />
-            </label>
-            <label class="field">
-              <span>Tandem / equilibre +</span>
-              <input id="simple-tandem" type="text" inputmode="text" placeholder="tandem ; xx" />
-            </label>
-            <label class="field wide">
-              <span>Handgrip</span>
-              <input id="simple-handgrip" type="text" inputmode="text" placeholder="D+ XX, xx, xx, G- XX, xx, xx" />
-            </label>
-          </div>
-        </div>
-      </section>
-
-      <label class="field final-notes">
-        <span>Notes mesures simples</span>
-        <textarea id="simple-notes" rows="5" placeholder="Aide technique, consignes, chaussage, interpretation clinique, remarques de passation..."></textarea>
-      </label>
-
-      <div class="action-row">
-        <button id="share-simple-results" class="primary-action" type="button">Partager</button>
-        <button id="mail-simple-results" class="secondary-action" type="button">Mail</button>
-        <button id="copy-simple-results" class="secondary-action" type="button">Copier</button>
-        <button id="download-simple-excel" class="secondary-action" type="button">Excel modele</button>
       </div>
     </section>
   </main>
@@ -221,6 +114,6 @@
   </button>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <script src="./app.js?v=20260507-powerapps-excel-template"></script>
+  <script src="./app.js?v=20260520-simple-hub-flow"></script>
 </body>
 </html>

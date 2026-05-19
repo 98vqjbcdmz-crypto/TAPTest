@@ -709,3 +709,96 @@ textarea {
     text-align: left;
   }
 }
+
+.simple-screen {
+  display: grid;
+  gap: 12px;
+}
+
+.module-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.module-button {
+  min-height: 74px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.96rem;
+  font-weight: 900;
+  box-shadow: var(--shadow);
+}
+
+.module-button.is-done {
+  background: #eef7f5;
+  border-color: var(--teal);
+  color: var(--teal);
+}
+
+.simple-share-row {
+  grid-template-columns: 1fr;
+}
+
+.workflow-topbar {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: center;
+}
+
+.workflow-progress {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--blue);
+  font-weight: 900;
+  box-shadow: var(--shadow);
+}
+
+.workflow-card {
+  min-height: 420px;
+}
+
+.workflow-measure-card,
+.workflow-note-card {
+  height: 100%;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.workflow-measure-body {
+  grid-template-columns: 1fr;
+}
+
+.workflow-actions {
+  grid-template-columns: 1fr;
+}
+
+#simple-workflow-primary[hidden],
+#simple-workflow-secondary[hidden] {
+  display: none;
+}
+
+@media (max-width: 520px) {
+  .module-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .workflow-topbar {
+    grid-template-columns: 1fr;
+  }
+
+  .workflow-card {
+    min-height: 360px;
+  }
+}
