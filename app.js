@@ -87,7 +87,7 @@ const walkSequence = [
     label: "DT usuelle - Parties du corps",
     badge: "DT",
     instruction: "Marche usuelle sur 4 m lances avec enumeration Parties du corps.",
-    excelCell: "D33",
+    excelCell: "E33",
   },
   {
     id: "dtFastClothes",
@@ -101,7 +101,7 @@ const walkSequence = [
     label: "DT rapide - Meubles",
     badge: "DT",
     instruction: "Marche rapide securisee sur 4 m lances avec enumeration Meubles.",
-    excelCell: "D35",
+    excelCell: "E35",
   },
 ];
 
@@ -963,9 +963,45 @@ function simpleWorkbookRecord() {
     B31: "DT usuelle : Fruits / legumes | Parties du corps | DT rapide : Vetements | Meubles",
     G33: formatNumber(numberValue(state.simpleStrength.chair5Time), 2) || "",
     B33: cellValues.B33 || "",
-    D33: cellValues.D33 || "",
+    E33: cellValues.E33 || "",
     B35: cellValues.B35 || "",
-    D35: cellValues.D35 || "",
+    E35: cellValues.E35 || "",
+    A42: [balanceSummary(), state.simpleBalance.note ? `Equilibre : ${state.simpleBalance.note}` : "", state.simpleStrength.note ? `Force : ${state.simpleStrength.note}` : "", state.simpleStrength.impossibleWithoutHands ? "Force : impossible sans les mains" : "", autonomySummary(), state.simpleAutonomy.note ? `Autonomie : ${state.simpleAutonomy.note}` : "", moduleNotes.join("\n")].filter(Boolean).join("\n"),
+  };
+}
+
+function simpleTemplateWorkbookRecord() {
+  const cellValues = {};
+  for (let index = 0; index < walkSequence.length; index += 1) {
+    const measure = walkSequence[index];
+    cellValues[measure.excelCell] = numberValue(walkValuesFor(measure.id).time);
+  }
+  const moduleNotes = [];
+  for (let index = 0; index < moduleDefinitions.length; index += 1) {
+    const moduleId = moduleDefinitions[index].id;
+    if (moduleId === "walk" || moduleId === "strength" || moduleId === "autonomy" || moduleId === "balance") continue;
+    const note = String(state.simpleNotes[moduleId] || "").trim();
+    if (note) moduleNotes.push(`${moduleDefinitions[index].label} : ${note}`);
+  }
+  return {
+    B5: state.participantId.trim(),
+    E5: currentDateIso(),
+    H5: "MCO",
+    B11: 4,
+    E11: 2,
+    B12: 2,
+    B16: cellValues.B16,
+    B17: cellValues.B17,
+    B18: cellValues.B18,
+    B22: cellValues.B22,
+    B23: cellValues.B23,
+    B24: cellValues.B24,
+    B31: "DT usuelle : Fruits / legumes | Parties du corps | DT rapide : Vetements | Meubles",
+    G33: numberValue(state.simpleStrength.chair5Time),
+    B33: cellValues.B33,
+    E33: cellValues.E33,
+    B35: cellValues.B35,
+    E35: cellValues.E35,
     A42: [balanceSummary(), state.simpleBalance.note ? `Equilibre : ${state.simpleBalance.note}` : "", state.simpleStrength.note ? `Force : ${state.simpleStrength.note}` : "", state.simpleStrength.impossibleWithoutHands ? "Force : impossible sans les mains" : "", autonomySummary(), state.simpleAutonomy.note ? `Autonomie : ${state.simpleAutonomy.note}` : "", moduleNotes.join("\n")].filter(Boolean).join("\n"),
   };
 }
@@ -1023,6 +1059,7 @@ function setSheetCell(sheet, ref, value) {
   if (typeof value === "number" && Number.isFinite(value)) {
     current.t = "n";
     current.v = value;
+    if (!current.z) current.z = "0.00";
     sheet[ref] = current;
     return;
   }
@@ -1138,13 +1175,13 @@ async function buildSimpleModelExcelFile() {
   if (typeof XLSX === "undefined") throw new Error("Bibliotheque Excel indisponible");
   const response = await fetch("./assets/fiche_4m_usuel_rapide_complexite_template.xlsx");
   if (!response.ok) throw new Error("Modele Excel introuvable");
-  const workbook = XLSX.read(await response.arrayBuffer(), { type: "array" });
+  const workbook = XLSX.read(await response.arrayBuffer(), { type: "array", cellStyles: true, cellNF: true });
   workbook.Workbook = workbook.Workbook || {};
   workbook.Workbook.Views = [{ activeTab: 1 }];
 
   const recueil = workbook.Sheets["Recueil"];
   if (!recueil) throw new Error("Feuille Recueil introuvable");
-  const record = simpleWorkbookRecord();
+  const record = simpleTemplateWorkbookRecord();
   Object.keys(record).forEach((ref) => setSheetCell(recueil, ref, record[ref]));
 
   const resultSheet = workbook.Sheets["Résultats"];
@@ -1153,7 +1190,7 @@ async function buildSimpleModelExcelFile() {
     setSheetCell(resultSheet, "A34", simpleExportSummaryLines().join("\n"));
   }
 
-  const arrayBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+  const arrayBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array", cellStyles: true });
   const blob = new Blob([arrayBuffer], {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   });
