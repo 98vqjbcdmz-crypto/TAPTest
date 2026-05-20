@@ -784,6 +784,60 @@ textarea {
   grid-template-columns: 1fr;
 }
 
+.walk-subtabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 12px 14px 0;
+}
+
+.walk-subtab {
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #f8fafc;
+  color: var(--muted);
+  font-weight: 900;
+}
+
+.walk-subtab.is-active {
+  background: var(--teal);
+  border-color: var(--teal);
+  color: #fff;
+}
+
+.sensor-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.sensor-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #f8fafc;
+}
+
+.sensor-status strong {
+  color: var(--blue);
+  font-size: 0.88rem;
+}
+
+.sensor-status span {
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.sensor-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
 #simple-workflow-primary[hidden],
 #simple-workflow-secondary[hidden] {
   display: none;
@@ -800,6 +854,10 @@ textarea {
 
   .workflow-card {
     min-height: 360px;
+  }
+
+  .sensor-grid {
+    grid-template-columns: 1fr;
   }
 }
 

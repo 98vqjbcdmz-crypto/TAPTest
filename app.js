@@ -149,6 +149,10 @@ const defaultState = {
   simpleWorkflow: {
     module: "menu",
     walkIndex: 0,
+    walkView: "timer",
+  },
+  simpleMotion: {
+    captures: {},
   },
 };
 
@@ -175,6 +179,22 @@ const shareSimpleModelExcelButton = document.getElementById("share-simple-model-
 
 const state = loadState();
 const timerState = new Map();
+const motionState = {
+  permission: "idle",
+  listening: false,
+  latest: {
+    ax: null,
+    ay: null,
+    az: null,
+    gx: null,
+    gy: null,
+    gz: null,
+    interval: null,
+  },
+  captureMeasureId: "",
+  captureStartedAt: 0,
+  captureSamples: [],
+};
 
 let overlayTimerScope = "";
 let overlayTimerMeasure = "";
@@ -206,6 +226,9 @@ function normalizeState(candidate) {
   if (!normalized.simpleNotes || typeof normalized.simpleNotes !== "object") normalized.simpleNotes = freshDefaultState().simpleNotes;
   if (!normalized.simpleWorkflow || typeof normalized.simpleWorkflow !== "object") normalized.simpleWorkflow = freshDefaultState().simpleWorkflow;
   if (typeof normalized.simpleWorkflow.walkIndex !== "number") normalized.simpleWorkflow.walkIndex = 0;
+  if (!normalized.simpleWorkflow.walkView) normalized.simpleWorkflow.walkView = "timer";
+  if (!normalized.simpleMotion || typeof normalized.simpleMotion !== "object") normalized.simpleMotion = freshDefaultState().simpleMotion;
+  if (!normalized.simpleMotion.captures || typeof normalized.simpleMotion.captures !== "object") normalized.simpleMotion.captures = {};
   if (!normalized.simpleWorkflow.module) normalized.simpleWorkflow.module = "menu";
   return normalized;
 }
@@ -413,6 +436,114 @@ function walkCompletedCount() {
   return count;
 }
 
+function motionSupported() {
+  return typeof window !== "undefined" && typeof window.DeviceMotionEvent !== "undefined";
+}
+
+function formatSigned(value, digits) {
+  return Number.isFinite(value) ? formatNumber(value, digits) : "--";
+}
+
+function captureSummary(measureId) {
+  return state.simpleMotion.captures[measureId] || null;
+}
+
+function buildMotionSummary(samples) {
+  if (!samples.length) return null;
+  let peak = 0;
+  let sumNorm = 0;
+  for (let index = 0; index < samples.length; index += 1) {
+    const sample = samples[index];
+    const norm = Math.sqrt(sample.ax * sample.ax + sample.ay * sample.ay + sample.az * sample.az);
+    sumNorm += norm;
+    if (norm > peak) peak = norm;
+  }
+  const durationMs = samples[samples.length - 1].t - samples[0].t;
+  return {
+    sampleCount: samples.length,
+    durationMs,
+    peakNorm: peak,
+    meanNorm: sumNorm / samples.length,
+  };
+}
+
+function storeMotionCapture(measureId) {
+  if (!measureId) return;
+  const summary = buildMotionSummary(motionState.captureSamples);
+  if (!summary) return;
+  state.simpleMotion.captures[measureId] = summary;
+  saveState();
+}
+
+function stopMotionCapture() {
+  if (!motionState.captureMeasureId) return;
+  storeMotionCapture(motionState.captureMeasureId);
+  motionState.captureMeasureId = "";
+  motionState.captureStartedAt = 0;
+  motionState.captureSamples = [];
+}
+
+function startMotionCapture(measureId) {
+  if (!measureId || motionState.permission !== "granted") return;
+  motionState.captureMeasureId = measureId;
+  motionState.captureStartedAt = performance.now();
+  motionState.captureSamples = [];
+}
+
+function handleMotionEvent(event) {
+  const acceleration = event.accelerationIncludingGravity || event.acceleration || {};
+  const rotationRate = event.rotationRate || {};
+  motionState.latest.ax = Number.isFinite(acceleration.x) ? acceleration.x : null;
+  motionState.latest.ay = Number.isFinite(acceleration.y) ? acceleration.y : null;
+  motionState.latest.az = Number.isFinite(acceleration.z) ? acceleration.z : null;
+  motionState.latest.gx = Number.isFinite(rotationRate.alpha) ? rotationRate.alpha : null;
+  motionState.latest.gy = Number.isFinite(rotationRate.beta) ? rotationRate.beta : null;
+  motionState.latest.gz = Number.isFinite(rotationRate.gamma) ? rotationRate.gamma : null;
+  motionState.latest.interval = Number.isFinite(event.interval) ? event.interval : null;
+  if (motionState.captureMeasureId) {
+    if (motionState.captureSamples.length < 1200) {
+      motionState.captureSamples.push({
+        t: performance.now() - motionState.captureStartedAt,
+        ax: motionState.latest.ax || 0,
+        ay: motionState.latest.ay || 0,
+        az: motionState.latest.az || 0,
+      });
+    }
+  }
+  const fields = ["ax", "ay", "az", "gx", "gy", "gz"];
+  for (let index = 0; index < fields.length; index += 1) {
+    const key = fields[index];
+    const node = document.getElementById(`sensor-${key}`);
+    if (node) node.textContent = formatSigned(motionState.latest[key], key.indexOf("g") === 0 ? 1 : 2);
+  }
+}
+
+function startMotionListener() {
+  if (motionState.listening) return;
+  window.addEventListener("devicemotion", handleMotionEvent);
+  motionState.listening = true;
+}
+
+async function requestMotionAccess() {
+  if (!motionSupported()) {
+    motionState.permission = "unsupported";
+    renderCurrentMode();
+    return;
+  }
+  try {
+    if (typeof DeviceMotionEvent.requestPermission === "function") {
+      const permission = await DeviceMotionEvent.requestPermission();
+      motionState.permission = permission === "granted" ? "granted" : "denied";
+    } else {
+      motionState.permission = "granted";
+    }
+    if (motionState.permission === "granted") startMotionListener();
+  } catch {
+    motionState.permission = "denied";
+  }
+  renderCurrentMode();
+}
+
 function moduleDone(moduleId) {
   if (moduleId === "walk") return walkCompletedCount() === walkSequence.length;
   if (moduleId === "strength") {
@@ -476,6 +607,8 @@ function renderWalkWorkflow() {
   const measure = walkSequence[index];
   const values = walkValuesFor(measure.id);
   const timer = getTimer("simple", measure.id);
+  const sensorSummary = captureSummary(measure.id);
+  const isSensorView = state.simpleWorkflow.walkView === "sensor";
   simpleWorkflowProgress.textContent = `Marche ${index + 1} / ${walkSequence.length}`;
   simpleWorkflowPrimary.hidden = false;
   simpleWorkflowPrimary.textContent = index >= walkSequence.length - 1 ? "Enregistrer et terminer" : "Enregistrer et suivant";
@@ -489,12 +622,42 @@ function renderWalkWorkflow() {
         </div>
         <p>${measure.instruction}</p>
       </div>
+      <div class="walk-subtabs" role="tablist" aria-label="Saisie marche">
+        <button class="walk-subtab${isSensorView ? "" : " is-active"}" type="button" data-action="walk-view" data-view="timer">Chrono</button>
+        <button class="walk-subtab${isSensorView ? " is-active" : ""}" type="button" data-action="walk-view" data-view="sensor">Accelerometre</button>
+      </div>
       <div class="measure-body workflow-measure-body">
+        ${isSensorView ? `
+          <div class="sensor-panel">
+            <div class="protocol-note">
+              <strong>Telephone fixe au sacrum</strong>
+              <span>Ceinture recommandee. Autoriser les capteurs iPhone avant l'essai.</span>
+            </div>
+            <div class="sensor-status">
+              <strong>Etat capteur</strong>
+              <span>${motionState.permission === "granted" ? "Actif" : motionState.permission === "denied" ? "Refuse" : motionState.permission === "unsupported" ? "Non disponible" : "Non active"}</span>
+            </div>
+            ${motionState.permission !== "granted" ? `<button class="primary-action" type="button" data-action="enable-motion">Activer les capteurs</button>` : ""}
+            <div class="sensor-grid">
+              <div class="computed"><span>ax</span><strong id="sensor-ax">${formatSigned(motionState.latest.ax, 2)}</strong></div>
+              <div class="computed"><span>ay</span><strong id="sensor-ay">${formatSigned(motionState.latest.ay, 2)}</strong></div>
+              <div class="computed"><span>az</span><strong id="sensor-az">${formatSigned(motionState.latest.az, 2)}</strong></div>
+              <div class="computed"><span>gx</span><strong id="sensor-gx">${formatSigned(motionState.latest.gx, 1)}</strong></div>
+              <div class="computed"><span>gy</span><strong id="sensor-gy">${formatSigned(motionState.latest.gy, 1)}</strong></div>
+              <div class="computed"><span>gz</span><strong id="sensor-gz">${formatSigned(motionState.latest.gz, 1)}</strong></div>
+            </div>
+            <div class="computed wide">
+              <span>Derniere acquisition</span>
+              <strong>${sensorSummary ? `${sensorSummary.sampleCount} echantillons - ${formatNumber(sensorSummary.durationMs / 1000, 2)} s - pic ${formatNumber(sensorSummary.peakNorm, 2)}` : "Aucune capture pour cet essai"}</strong>
+            </div>
+          </div>
+        ` : `
         <label class="field">
           <span>Temps valide (s)</span>
           <input data-field="time" data-scope="simple" data-measure="${measure.id}" type="number" min="0" step="0.01" inputmode="decimal" value="${values.time || ""}" placeholder="0,00" />
         </label>
         ${renderTimerBox("simple", measure.id, timer)}
+        `}
       </div>
     </article>
   `;
@@ -693,6 +856,7 @@ function renderNoteWorkflow(moduleId) {
 function openSimpleModule(moduleId) {
   state.simpleWorkflow.module = moduleId;
   if (moduleId === "walk") {
+    state.simpleWorkflow.walkView = "timer";
     let firstIncomplete = 0;
     for (let index = 0; index < walkSequence.length; index += 1) {
       if (!numberValue(walkValuesFor(walkSequence[index].id).time)) {
@@ -753,6 +917,7 @@ function startTimer(scope, measureId) {
   timer.running = true;
   timer.stopped = false;
   timer.startedAt = performance.now();
+  if (scope === "simple") startMotionCapture(measureId);
   showOverlay(scope, measureId, "running");
   updateTimerDisplay(scope, measureId);
 }
@@ -763,6 +928,7 @@ function stopTimer(scope, measureId) {
   timer.running = false;
   timer.stopped = true;
   cancelAnimationFrame(timer.raf);
+  if (scope === "simple") stopMotionCapture();
   hideStopOverlay();
   renderCurrentMode();
 }
@@ -782,6 +948,7 @@ function useTimer(scope, measureId) {
   timer.running = false;
   timer.stopped = true;
   cancelAnimationFrame(timer.raf);
+  if (scope === "simple") stopMotionCapture();
   hideStopOverlay();
   const values = scope === "simple" ? walkValuesFor(measureId) : (scope === "strength" ? state.simpleStrength : tapValuesFor(measureId));
   if (scope === "strength") values.chair5Time = (timer.elapsed / 1000).toFixed(2);
@@ -803,6 +970,10 @@ function resetTimer(scope, measureId) {
   timer.running = false;
   timer.stopped = false;
   cancelAnimationFrame(timer.raf);
+  if (scope === "simple") {
+    stopMotionCapture();
+    delete state.simpleMotion.captures[measureId];
+  }
   if (overlayTimerScope === scope && overlayTimerMeasure === measureId) hideStopOverlay();
   const values = scope === "simple" ? walkValuesFor(measureId) : (scope === "strength" ? state.simpleStrength : tapValuesFor(measureId));
   if (scope === "strength") values.chair5Time = "";
@@ -1479,6 +1650,20 @@ function bindEvents() {
     if (button.dataset.action === "toggle") toggleTimer(scope, button.dataset.measure);
     if (button.dataset.action === "use") useTimer(scope, button.dataset.measure);
     if (button.dataset.action === "reset") resetTimer(scope, button.dataset.measure);
+  });
+
+  document.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!target || !target.dataset) return;
+    if (target.dataset.action === "walk-view") {
+      state.simpleWorkflow.walkView = target.dataset.view === "sensor" ? "sensor" : "timer";
+      saveState();
+      renderWalkWorkflow();
+      return;
+    }
+    if (target.dataset.action === "enable-motion") {
+      requestMotionAccess();
+    }
   });
 
   document.getElementById("share-results").addEventListener("click", shareResults);
