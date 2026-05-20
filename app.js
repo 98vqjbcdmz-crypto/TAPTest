@@ -1190,7 +1190,8 @@ async function buildSimpleModelExcelFile() {
 
   const resultsFile = zip.file("xl/worksheets/sheet2.xml");
   if (resultsFile) {
-    const resultsXml = await resultsFile.async("string");
+    let resultsXml = await resultsFile.async("string");
+    resultsXml = resultsXml.replaceAll("_xlfn.STDEV.S", "STDEV");
     const resultsDoc = new DOMParser().parseFromString(resultsXml, "application/xml");
     setWorksheetValue(resultsDoc, "A1", "SYNTHESE EXPORT");
     setWorksheetValue(resultsDoc, "A34", simpleExportSummaryLines().join("\n"));
