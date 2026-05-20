@@ -1172,28 +1172,54 @@ async function buildSimpleExcelFile() {
 }
 
 async function buildSimpleModelExcelFile() {
-  if (typeof XLSX === "undefined") throw new Error("Bibliotheque Excel indisponible");
+  if (typeof JSZip === "undefined") throw new Error("Bibliotheque Excel indisponible");
   const response = await fetch("./assets/fiche_4m_usuel_rapide_complexite_template.xlsx");
   if (!response.ok) throw new Error("Modele Excel introuvable");
-  const workbook = XLSX.read(await response.arrayBuffer(), { type: "array", cellStyles: true, cellNF: true });
-  workbook.Workbook = workbook.Workbook || {};
-  workbook.Workbook.Views = [{ activeTab: 1 }];
+  const zip = await JSZip.loadAsync(await response.arrayBuffer());
 
-  const recueil = workbook.Sheets["Recueil"];
-  if (!recueil) throw new Error("Feuille Recueil introuvable");
+  const recueilFile = zip.file("xl/worksheets/sheet1.xml");
+  if (!recueilFile) throw new Error("Feuille Recueil introuvable");
+  const recueilXml = await recueilFile.async("string");
+  const recueilDoc = new DOMParser().parseFromString(recueilXml, "application/xml");
   const record = simpleTemplateWorkbookRecord();
-  Object.keys(record).forEach((ref) => setSheetCell(recueil, ref, record[ref]));
+  const refs = Object.keys(record);
+  for (let index = 0; index < refs.length; index += 1) {
+    setWorksheetValue(recueilDoc, refs[index], record[refs[index]]);
+  }
+  zip.file("xl/worksheets/sheet1.xml", new XMLSerializer().serializeToString(recueilDoc));
 
-  const resultSheet = workbook.Sheets["Résultats"];
-  if (resultSheet) {
-    setSheetCell(resultSheet, "A1", "SYNTHESE EXPORT");
-    setSheetCell(resultSheet, "A34", simpleExportSummaryLines().join("\n"));
+  const resultsFile = zip.file("xl/worksheets/sheet2.xml");
+  if (resultsFile) {
+    const resultsXml = await resultsFile.async("string");
+    const resultsDoc = new DOMParser().parseFromString(resultsXml, "application/xml");
+    setWorksheetValue(resultsDoc, "A1", "SYNTHESE EXPORT");
+    setWorksheetValue(resultsDoc, "A34", simpleExportSummaryLines().join("\n"));
+    zip.file("xl/worksheets/sheet2.xml", new XMLSerializer().serializeToString(resultsDoc));
   }
 
-  const arrayBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array", cellStyles: true });
-  const blob = new Blob([arrayBuffer], {
-    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  });
+  const workbookFile = zip.file("xl/workbook.xml");
+  if (workbookFile) {
+    const workbookXml = await workbookFile.async("string");
+    const workbookDoc = new DOMParser().parseFromString(workbookXml, "application/xml");
+    const workbookView = workbookDoc.getElementsByTagName("workbookView")[0];
+    if (workbookView) {
+      workbookView.setAttribute("firstSheet", "0");
+      workbookView.setAttribute("activeTab", "0");
+    }
+    const calcPr = workbookDoc.getElementsByTagName("calcPr")[0];
+    if (calcPr) {
+      calcPr.setAttribute("calcMode", "auto");
+      calcPr.setAttribute("fullCalcOnLoad", "1");
+      calcPr.setAttribute("forceFullCalc", "1");
+    }
+    zip.file("xl/workbook.xml", new XMLSerializer().serializeToString(workbookDoc));
+  }
+
+  if (zip.file("xl/calcChain.xml")) {
+    zip.remove("xl/calcChain.xml");
+  }
+
+  const blob = await zip.generateAsync({ type: "blob" });
   return { blob, filename: modelWorkbookFileName() };
 }
 
