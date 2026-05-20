@@ -899,6 +899,32 @@ function balanceSummary() {
   return parts.join(" | ");
 }
 
+function balanceBestStageLabel() {
+  const values = state.simpleBalance || {};
+  if (numberValue(values.tandem) != null) return "tandem";
+  if (numberValue(values.semiTandem) != null) return "1/2tandem";
+  if (numberValue(values.rpds) != null) return "RPdS";
+  return "";
+}
+
+function balanceBestStageSeconds() {
+  const values = state.simpleBalance || {};
+  const candidates = [numberValue(values.rpds), numberValue(values.semiTandem), numberValue(values.tandem)].filter((value) => Number.isFinite(value));
+  if (!candidates.length) return null;
+  let maxValue = candidates[0];
+  for (let index = 1; index < candidates.length; index += 1) {
+    if (candidates[index] > maxValue) maxValue = candidates[index];
+  }
+  return maxValue;
+}
+
+function balanceTemplateDisplay() {
+  const label = balanceBestStageLabel();
+  const seconds = balanceBestStageSeconds();
+  if (!label || !Number.isFinite(seconds)) return "";
+  return `${label} ; ${formatNumber(seconds, 0)}`;
+}
+
 function autonomySummary() {
   const adlLabels = { toilette: "Toilette", habillage: "Habillage", alimentation: "Alimentation", transferts: "Transferts", continence: "Continence", deplacements: "Deplacements", releverSol: "Relever du sol" };
   const iadlLabels = { telephone: "Telephone", courses: "Courses", repas: "Preparation repas", menage: "Menage", lessive: "Lessive", transports: "Transports", traitement: "Traitement", finances: "Finances" };
@@ -998,6 +1024,8 @@ function simpleTemplateWorkbookRecord() {
     B24: cellValues.B24,
     B31: "DT usuelle : Fruits / legumes | Parties du corps | DT rapide : Vetements | Meubles",
     G33: numberValue(state.simpleStrength.chair5Time),
+    E37: balanceTemplateDisplay(),
+    G39: balanceScoreFromValues(state.simpleBalance),
     B33: cellValues.B33,
     E33: cellValues.E33,
     B35: cellValues.B35,
