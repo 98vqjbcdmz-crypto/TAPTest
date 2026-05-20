@@ -938,7 +938,7 @@ function simpleWorkbookRecord() {
   for (let index = 0; index < walkSequence.length; index += 1) {
     const measure = walkSequence[index];
     const time = numberValue(walkValuesFor(measure.id).time);
-    cellValues[measure.excelCell] = Number.isFinite(time) ? time.toFixed(2) : "";
+    cellValues[measure.excelCell] = Number.isFinite(time) ? formatNumber(time, 2) : "";
   }
   const moduleNotes = [];
   for (let index = 0; index < moduleDefinitions.length; index += 1) {
@@ -961,7 +961,7 @@ function simpleWorkbookRecord() {
     B23: cellValues.B23 || "",
     B24: cellValues.B24 || "",
     B31: "DT usuelle : Fruits / legumes | Parties du corps | DT rapide : Vetements | Meubles",
-    G33: state.simpleStrength.chair5Time || "",
+    G33: formatNumber(numberValue(state.simpleStrength.chair5Time), 2) || "",
     B33: cellValues.B33 || "",
     D33: cellValues.D33 || "",
     B35: cellValues.B35 || "",
@@ -1017,11 +1017,18 @@ function modelWorkbookFileName() {
 
 function setSheetCell(sheet, ref, value) {
   if (value == null || value === "") return;
+  const current = sheet[ref] ? { ...sheet[ref] } : {};
+  delete current.f;
+  delete current.w;
   if (typeof value === "number" && Number.isFinite(value)) {
-    sheet[ref] = { t: "n", v: value };
+    current.t = "n";
+    current.v = value;
+    sheet[ref] = current;
     return;
   }
-  sheet[ref] = { t: "s", v: String(value) };
+  current.t = "s";
+  current.v = String(value);
+  sheet[ref] = current;
 }
 
 function buildGeneratedWorkbook() {
@@ -1120,32 +1127,6 @@ function buildGeneratedWorkbook() {
 
 async function buildSimpleExcelFile() {
   const workbook = buildGeneratedWorkbook();
-  const arrayBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
-  const blob = new Blob([arrayBuffer], {
-    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  });
-  return { blob, filename: workbookFileName() };
-}
-
-async function buildSimpleModelExcelFile() {
-  if (typeof XLSX === "undefined") throw new Error("Bibliotheque Excel indisponible");
-  const response = await fetch("./assets/fiche_4m_usuel_rapide_complexite_template.xlsx");
-  if (!response.ok) throw new Error("Modele Excel introuvable");
-  const workbook = XLSX.read(await response.arrayBuffer(), { type: "array" });
-  workbook.Workbook = workbook.Workbook || {};
-  workbook.Workbook.Views = [{ activeTab: 1 }];
-
-  const recueil = workbook.Sheets["Recueil"];
-  if (!recueil) throw new Error("Feuille Recueil introuvable");
-  const record = simpleWorkbookRecord();
-  Object.keys(record).forEach((ref) => setSheetCell(recueil, ref, record[ref]));
-
-  const resultSheet = workbook.Sheets["Résultats"];
-  if (resultSheet) {
-    setSheetCell(resultSheet, "A1", "SYNTHESE EXPORT");
-    setSheetCell(resultSheet, "A34", simpleExportSummaryLines().join("\n"));
-  }
-
   const arrayBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
   const blob = new Blob([arrayBuffer], {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
