@@ -1561,9 +1561,86 @@ function worksheetCell(doc, ref) {
   return null;
 }
 
+function cellRefParts(ref) {
+  const match = String(ref || "").match(/^([A-Z]+)(\d+)$/);
+  if (!match) return null;
+  return { column: match[1], row: Number.parseInt(match[2], 10) };
+}
+
+function columnIndexFromName(name) {
+  let result = 0;
+  for (let index = 0; index < name.length; index += 1) {
+    result = (result * 26) + (name.charCodeAt(index) - 64);
+  }
+  return result;
+}
+
+function worksheetRow(doc, rowNumber) {
+  const rows = doc.getElementsByTagName("row");
+  for (let index = 0; index < rows.length; index += 1) {
+    if (Number.parseInt(rows[index].getAttribute("r"), 10) === rowNumber) return rows[index];
+  }
+  return null;
+}
+
+function ensureWorksheetRow(doc, rowNumber) {
+  const existing = worksheetRow(doc, rowNumber);
+  if (existing) return existing;
+  const namespace = doc.documentElement.namespaceURI || "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
+  const sheetData = doc.getElementsByTagName("sheetData")[0];
+  if (!sheetData) return null;
+  const row = doc.createElementNS(namespace, "row");
+  row.setAttribute("r", String(rowNumber));
+  const rows = sheetData.getElementsByTagName("row");
+  let inserted = false;
+  for (let index = 0; index < rows.length; index += 1) {
+    const current = Number.parseInt(rows[index].getAttribute("r"), 10);
+    if (current > rowNumber) {
+      sheetData.insertBefore(row, rows[index]);
+      inserted = true;
+      break;
+    }
+  }
+  if (!inserted) sheetData.appendChild(row);
+  return row;
+}
+
+function ensureWorksheetCell(doc, ref) {
+  const existing = worksheetCell(doc, ref);
+  if (existing) return existing;
+  const parts = cellRefParts(ref);
+  if (!parts) return null;
+  const namespace = doc.documentElement.namespaceURI || "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
+  const row = ensureWorksheetRow(doc, parts.row);
+  if (!row) return null;
+  const cell = doc.createElementNS(namespace, "c");
+  cell.setAttribute("r", ref);
+
+  const cells = row.getElementsByTagName("c");
+  let styleRef = "";
+  for (let index = 0; index < cells.length; index += 1) {
+    const currentRef = cells[index].getAttribute("r");
+    const currentParts = cellRefParts(currentRef);
+    if (!currentParts) continue;
+    if (!styleRef && cells[index].getAttribute("s")) styleRef = cells[index].getAttribute("s");
+    if (columnIndexFromName(currentParts.column) > columnIndexFromName(parts.column)) {
+      if (!styleRef && index > 0 && cells[index - 1].getAttribute("s")) styleRef = cells[index - 1].getAttribute("s");
+      row.insertBefore(cell, cells[index]);
+      if (styleRef) cell.setAttribute("s", styleRef);
+      return cell;
+    }
+  }
+
+  if (!styleRef && cells.length && cells[cells.length - 1].getAttribute("s")) styleRef = cells[cells.length - 1].getAttribute("s");
+  if (styleRef) cell.setAttribute("s", styleRef);
+  row.appendChild(cell);
+  return cell;
+}
+
 function setWorksheetValue(doc, ref, rawValue) {
-  const cell = worksheetCell(doc, ref);
+  const cell = ensureWorksheetCell(doc, ref);
   if (!cell) return;
+  const namespace = doc.documentElement.namespaceURI || "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
   while (cell.firstChild) cell.removeChild(cell.firstChild);
   const value = rawValue == null ? "" : String(rawValue).trim();
   if (!value) {
@@ -1573,14 +1650,15 @@ function setWorksheetValue(doc, ref, rawValue) {
   const normalized = value.replace(",", ".");
   if (/^-?\d+(?:\.\d+)?$/.test(normalized)) {
     cell.removeAttribute("t");
-    const node = doc.createElement("v");
+    const node = doc.createElementNS(namespace, "v");
     node.textContent = normalized;
     cell.appendChild(node);
     return;
   }
   cell.setAttribute("t", "inlineStr");
-  const isNode = doc.createElement("is");
-  const tNode = doc.createElement("t");
+  const isNode = doc.createElementNS(namespace, "is");
+  const tNode = doc.createElementNS(namespace, "t");
+  tNode.setAttribute("xml:space", "preserve");
   tNode.textContent = value;
   isNode.appendChild(tNode);
   cell.appendChild(isNode);
