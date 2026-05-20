@@ -170,6 +170,7 @@ const simpleWorkflowPrimary = document.getElementById("simple-workflow-primary")
 const simpleWorkflowSecondary = document.getElementById("simple-workflow-secondary");
 const simpleBackToMenu = document.getElementById("simple-back-to-menu");
 const shareSimpleExcelButton = document.getElementById("share-simple-excel");
+const shareSimpleModelExcelButton = document.getElementById("share-simple-model-excel");
 
 const state = loadState();
 const timerState = new Map();
@@ -1008,6 +1009,12 @@ function workbookFileName() {
   return `${participant.replace(/[^a-z0-9_-]+/gi, "_")}_${stamp}_fiche_mesures_simples.xlsx`;
 }
 
+function modelWorkbookFileName() {
+  const participant = state.participantId.trim() || "sans-identifiant";
+  const stamp = new Date().toISOString().replace(/[:T]/g, "-").slice(0, 16);
+  return `${participant.replace(/[^a-z0-9_-]+/gi, "_")}_${stamp}_fiche_modele.xlsx`;
+}
+
 function setSheetCell(sheet, ref, value) {
   if (value == null || value === "") return;
   if (typeof value === "number" && Number.isFinite(value)) {
@@ -1120,26 +1127,89 @@ async function buildSimpleExcelFile() {
   return { blob, filename: workbookFileName() };
 }
 
+async function buildSimpleModelExcelFile() {
+  if (typeof XLSX === "undefined") throw new Error("Bibliotheque Excel indisponible");
+  const response = await fetch("./assets/fiche_4m_usuel_rapide_complexite_template.xlsx");
+  if (!response.ok) throw new Error("Modele Excel introuvable");
+  const workbook = XLSX.read(await response.arrayBuffer(), { type: "array" });
+  workbook.Workbook = workbook.Workbook || {};
+  workbook.Workbook.Views = [{ activeTab: 1 }];
+
+  const recueil = workbook.Sheets["Recueil"];
+  if (!recueil) throw new Error("Feuille Recueil introuvable");
+  const record = simpleWorkbookRecord();
+  Object.keys(record).forEach((ref) => setSheetCell(recueil, ref, record[ref]));
+
+  const resultSheet = workbook.Sheets["Résultats"];
+  if (resultSheet) {
+    setSheetCell(resultSheet, "A1", "SYNTHESE EXPORT");
+    setSheetCell(resultSheet, "A34", simpleExportSummaryLines().join("\n"));
+  }
+
+  const arrayBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+  const blob = new Blob([arrayBuffer], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  return { blob, filename: workbookFileName() };
+}
+
+async function buildSimpleModelExcelFile() {
+  if (typeof XLSX === "undefined") throw new Error("Bibliotheque Excel indisponible");
+  const response = await fetch("./assets/fiche_4m_usuel_rapide_complexite_template.xlsx");
+  if (!response.ok) throw new Error("Modele Excel introuvable");
+  const workbook = XLSX.read(await response.arrayBuffer(), { type: "array" });
+  workbook.Workbook = workbook.Workbook || {};
+  workbook.Workbook.Views = [{ activeTab: 1 }];
+
+  const recueil = workbook.Sheets["Recueil"];
+  if (!recueil) throw new Error("Feuille Recueil introuvable");
+  const record = simpleWorkbookRecord();
+  Object.keys(record).forEach((ref) => setSheetCell(recueil, ref, record[ref]));
+
+  const resultSheet = workbook.Sheets["Résultats"];
+  if (resultSheet) {
+    setSheetCell(resultSheet, "A1", "SYNTHESE EXPORT");
+    setSheetCell(resultSheet, "A34", simpleExportSummaryLines().join("\n"));
+  }
+
+  const arrayBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+  const blob = new Blob([arrayBuffer], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  return { blob, filename: modelWorkbookFileName() };
+}
+
+async function shareWorkbookFile(fileData) {
+  if (navigator.share && navigator.canShare && typeof File !== "undefined") {
+    const file = new File([fileData.blob], fileData.filename, {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    if (navigator.canShare({ files: [file] })) {
+      await navigator.share({ title: fileData.filename, files: [file] });
+      return;
+    }
+  }
+  const url = URL.createObjectURL(fileData.blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileData.filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+async function shareSimpleModelExcel() {
+  try {
+    await shareWorkbookFile(await buildSimpleModelExcelFile());
+  } catch (error) {
+    alert(error && error.message ? error.message : "Export Excel modele impossible.");
+  }
+}
+
 async function shareSimpleExcel() {
   try {
-    const fileData = await buildSimpleExcelFile();
-    if (navigator.share && navigator.canShare && typeof File !== "undefined") {
-      const file = new File([fileData.blob], fileData.filename, {
-        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      });
-      if (navigator.canShare({ files: [file] })) {
-        await navigator.share({ title: fileData.filename, files: [file] });
-        return;
-      }
-    }
-    const url = URL.createObjectURL(fileData.blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = fileData.filename;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    await shareWorkbookFile(await buildSimpleExcelFile());
   } catch (error) {
     alert(error && error.message ? error.message : "Export Excel impossible.");
   }
@@ -1316,6 +1386,7 @@ function bindEvents() {
   if (simpleBackToMenu) simpleBackToMenu.addEventListener("click", returnToSimpleMenu);
   if (simpleWorkflowPrimary) simpleWorkflowPrimary.addEventListener("click", handleWorkflowPrimary);
   if (shareSimpleExcelButton) shareSimpleExcelButton.addEventListener("click", shareSimpleExcel);
+  if (shareSimpleModelExcelButton) shareSimpleModelExcelButton.addEventListener("click", shareSimpleModelExcel);
 
   measureList.addEventListener("input", handleValueInput);
   if (simpleWorkflowCard) simpleWorkflowCard.addEventListener("input", handleValueInput);
