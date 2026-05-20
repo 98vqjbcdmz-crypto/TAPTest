@@ -33,6 +33,7 @@ body {
 
 button,
 input,
+select,
 textarea {
   font: inherit;
 }
@@ -197,6 +198,7 @@ h2 {
 }
 
 input,
+select,
 textarea {
   width: 100%;
   border: 1px solid var(--line);
@@ -208,12 +210,14 @@ textarea {
 }
 
 input:focus,
+select:focus,
 textarea:focus {
   border-color: var(--teal);
   box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.14);
 }
 
 .field-alert input,
+.field-alert select,
 .field-alert textarea {
   border-color: var(--coral);
   background: #fff5f4;
@@ -784,6 +788,67 @@ textarea {
   grid-template-columns: 1fr;
 }
 
+.accelerometer-card .measure-body {
+  display: grid;
+  gap: 16px;
+}
+
+.acc-meta-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.acc-button-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.acc-button-grid .primary-action,
+.acc-button-grid .secondary-action {
+  min-height: 48px;
+}
+
+.acc-status-grid,
+.acc-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.warning-note {
+  border-color: rgba(185, 64, 58, 0.22);
+  background: #fff5f4;
+}
+
+.warning-note strong {
+  color: var(--coral);
+}
+
+.chart-stack {
+  display: grid;
+  gap: 12px;
+}
+
+.chart-panel {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  background: #fbfdff;
+}
+
+.chart-panel h4 {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.chart-panel canvas {
+  width: 100%;
+  height: auto;
+  border: 1px solid #e6ecf2;
+  background: #fff;
+}
+
 .walk-subtabs {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -857,6 +922,13 @@ textarea {
   }
 
   .sensor-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .acc-meta-grid,
+  .acc-button-grid,
+  .acc-status-grid,
+  .acc-card-grid {
     grid-template-columns: 1fr;
   }
 }

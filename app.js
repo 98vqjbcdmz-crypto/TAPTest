@@ -107,6 +107,7 @@ const walkSequence = [
 
 const moduleDefinitions = [
   { id: "walk", label: "Marche" },
+  { id: "accelerometer", label: "Accelerometre" },
   { id: "balance", label: "Equilibre" },
   { id: "strength", label: "Force" },
   { id: "goals", label: "Objectifs" },
@@ -138,6 +139,25 @@ const defaultState = {
     semiTandem: "",
     tandem: "",
     note: "",
+  },
+  simpleAccelerometer: {
+    testId: "",
+    dateHeure: "",
+    distanceM: 20,
+    targetHz: 100,
+    phonePosition: "belt",
+    instruction: "comfortable",
+    comment: "",
+    useFullRecording: false,
+    rawSamples: [],
+    liveStats: {
+      durationS: 0,
+      sampleCount: 0,
+      estimatedHz: null,
+    },
+    analysis: null,
+    status: "idle",
+    lastError: "",
   },
   simpleNotes: {
     balance: "",
@@ -179,6 +199,10 @@ const shareSimpleModelExcelButton = document.getElementById("share-simple-model-
 
 const state = loadState();
 const timerState = new Map();
+const accelerometerApi = window.AccelerometerWalkTest || null;
+const accelerometerRuntime = accelerometerApi && typeof accelerometerApi.createRuntime === "function"
+  ? accelerometerApi.createRuntime()
+  : null;
 const motionState = {
   permission: "idle",
   listening: false,
@@ -223,12 +247,15 @@ function normalizeState(candidate) {
   if (!normalized.simpleStrength || typeof normalized.simpleStrength !== "object") normalized.simpleStrength = freshDefaultState().simpleStrength;
   if (!normalized.simpleAutonomy || typeof normalized.simpleAutonomy !== "object") normalized.simpleAutonomy = freshDefaultState().simpleAutonomy;
   if (!normalized.simpleBalance || typeof normalized.simpleBalance !== "object") normalized.simpleBalance = freshDefaultState().simpleBalance;
+  if (!normalized.simpleAccelerometer || typeof normalized.simpleAccelerometer !== "object") normalized.simpleAccelerometer = freshDefaultState().simpleAccelerometer;
   if (!normalized.simpleNotes || typeof normalized.simpleNotes !== "object") normalized.simpleNotes = freshDefaultState().simpleNotes;
   if (!normalized.simpleWorkflow || typeof normalized.simpleWorkflow !== "object") normalized.simpleWorkflow = freshDefaultState().simpleWorkflow;
   if (typeof normalized.simpleWorkflow.walkIndex !== "number") normalized.simpleWorkflow.walkIndex = 0;
   if (!normalized.simpleWorkflow.walkView) normalized.simpleWorkflow.walkView = "timer";
   if (!normalized.simpleMotion || typeof normalized.simpleMotion !== "object") normalized.simpleMotion = freshDefaultState().simpleMotion;
   if (!normalized.simpleMotion.captures || typeof normalized.simpleMotion.captures !== "object") normalized.simpleMotion.captures = {};
+  if (!Array.isArray(normalized.simpleAccelerometer.rawSamples)) normalized.simpleAccelerometer.rawSamples = [];
+  if (!normalized.simpleAccelerometer.liveStats || typeof normalized.simpleAccelerometer.liveStats !== "object") normalized.simpleAccelerometer.liveStats = freshDefaultState().simpleAccelerometer.liveStats;
   if (!normalized.simpleWorkflow.module) normalized.simpleWorkflow.module = "menu";
   return normalized;
 }
@@ -256,6 +283,40 @@ function formatNumber(value, digits) {
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
   }).format(value);
+}
+
+function formatValueOrNa(value, digits, unit) {
+  if (!Number.isFinite(value)) return "NA";
+  return `${formatNumber(value, digits)}${unit ? ` ${unit}` : ""}`;
+}
+
+function accelerometerState() {
+  if (accelerometerApi && typeof accelerometerApi.ensureState === "function") {
+    const ensured = accelerometerApi.ensureState(state.simpleAccelerometer);
+    ensured.patientId = state.participantId.trim() || ensured.patientId || "";
+    state.simpleAccelerometer = ensured;
+    return ensured;
+  }
+  if (state.simpleAccelerometer) state.simpleAccelerometer.patientId = state.participantId.trim() || state.simpleAccelerometer.patientId || "";
+  return state.simpleAccelerometer;
+}
+
+function ensureAccelerometerIdentity() {
+  const current = accelerometerState();
+  if (!current.testId && accelerometerApi && typeof accelerometerApi.generateTestId === "function") {
+    current.testId = accelerometerApi.generateTestId();
+  }
+  if (!current.dateHeure) current.dateHeure = new Date().toISOString();
+  current.patientId = state.participantId.trim() || "";
+  return current;
+}
+
+function accelerometerSummaryLine() {
+  const current = accelerometerState();
+  const results = current.analysis && current.analysis.results;
+  if (!results) return "";
+  const cadence = Number.isFinite(results.cadencePasMin) ? `${formatNumber(results.cadencePasMin, 1)} pas/min` : "NA";
+  return `Accelerometre 20 m : ${results.nbPasDetectes || 0} pas ; cadence ${cadence}`;
 }
 
 function formatTimer(ms) {
@@ -546,6 +607,10 @@ async function requestMotionAccess() {
 
 function moduleDone(moduleId) {
   if (moduleId === "walk") return walkCompletedCount() === walkSequence.length;
+  if (moduleId === "accelerometer") {
+    const current = accelerometerState();
+    return Boolean((current.analysis && current.analysis.results) || (current.rawSamples && current.rawSamples.length));
+  }
   if (moduleId === "strength") {
     return Boolean(numberValue(state.simpleStrength.chair5Time)) || Boolean(String(state.simpleStrength.note || "").trim()) || state.simpleStrength.impossibleWithoutHands;
   }
@@ -563,10 +628,10 @@ function moduleDone(moduleId) {
 
 function renderSimpleMenu() {
   const completed = walkCompletedCount();
-  const noteCount = ["balance", "strength", "goals", "activities", "autonomy", "analytic"].filter((moduleId) => moduleDone(moduleId)).length;
+  const completedModules = moduleDefinitions.filter((definition) => definition.id !== "walk" && moduleDone(definition.id)).length;
   simpleMenuSummary.innerHTML = `
     <strong>Identification : ${state.participantId.trim() || "a renseigner"}</strong>
-    <span>Marche : ${completed} / ${walkSequence.length} temps valides. Autres domaines notes : ${noteCount} / 6.</span>
+    <span>Marche : ${completed} / ${walkSequence.length} temps valides. Autres domaines completes : ${completedModules} / ${moduleDefinitions.length - 1}.</span>
   `;
   eachNode(".module-button", (button) => {
     button.classList.toggle("is-done", moduleDone(button.dataset.module));
@@ -588,6 +653,10 @@ function renderSimpleWorkflow() {
   }
   if (moduleId === "strength") {
     renderStrengthWorkflow();
+    return;
+  }
+  if (moduleId === "accelerometer") {
+    renderAccelerometerWorkflow();
     return;
   }
   if (moduleId === "balance") {
@@ -662,6 +731,275 @@ function renderWalkWorkflow() {
     </article>
   `;
   updateTimerDisplay("simple", measure.id);
+}
+
+function accelerometerResultCards(results) {
+  const warnings = results && results.avertissements ? results.avertissements.split(" | ").filter(Boolean) : [];
+  return `
+    <div class="acc-card-grid">
+      <div class="computed"><span>Pas detectes</span><strong>${results ? results.nbPasDetectes || 0 : "NA"}</strong></div>
+      <div class="computed"><span>Cadence</span><strong>${results ? formatValueOrNa(results.cadencePasMin, 1, "pas/min") : "NA"}</strong></div>
+      <div class="computed"><span>Longueur moyenne de pas</span><strong>${results ? formatValueOrNa(results.longueurPasMoyenneM, 2, "m") : "NA"}</strong></div>
+      <div class="computed"><span>Moyenne intervalles</span><strong>${results ? formatValueOrNa(results.intervallePasMoyenS, 3, "s") : "NA"}</strong></div>
+      <div class="computed"><span>CV intervalles</span><strong>${results ? formatValueOrNa(results.intervallePasCvPourcent, 1, "%") : "NA"}</strong></div>
+      <div class="computed"><span>Sample entropy signal</span><strong>${results ? formatValueOrNa(results.sampleEntropyNorm, 3, "") : "NA"}</strong></div>
+      <div class="computed"><span>DFA alpha signal</span><strong>${results ? formatValueOrNa(results.dfaAlphaNorm, 3, "") : "NA"}</strong></div>
+      <div class="computed"><span>Sample entropy intervalles</span><strong>${results ? formatValueOrNa(results.sampleEntropyStepIntervals, 3, "") : "NA"}</strong></div>
+      <div class="computed"><span>DFA intervalles</span><strong>${results ? formatValueOrNa(results.dfaAlphaStepIntervals, 3, "") : "NA"}</strong></div>
+    </div>
+    <div class="protocol-note">
+      <strong>Analyse exploratoire - a interpreter avec prudence</strong>
+      <span>${warnings.length ? warnings.join(" | ") : "Ces resultats completent l'evaluation clinique et ne produisent pas de conclusion medicale automatique."}</span>
+    </div>
+  `;
+}
+
+function renderAccelerometerWorkflow() {
+  const current = ensureAccelerometerIdentity();
+  const results = current.analysis && current.analysis.results;
+  const live = current.liveStats || {};
+  simpleWorkflowProgress.textContent = "Accelerometre - marche 20 m";
+  simpleWorkflowPrimary.hidden = true;
+  simpleWorkflowSecondary.hidden = true;
+  simpleWorkflowCard.innerHTML = `
+    <article class="workflow-note-card accelerometer-card">
+      <div class="measure-header">
+        <div class="measure-title-row">
+          <h3>Accelerometre - marche 20 m</h3>
+          <span class="measure-badge">Prototype</span>
+        </div>
+        <p>Procedure : fixer le telephone de maniere stable, idealement au niveau de la ceinture ou du bas du dos. Lancer l'enregistrement, donner une pichenette nette sur le telephone pour marquer le debut, demander au patient de marcher environ 20 metres, donner une deuxieme pichenette pour marquer la fin, puis arreter l'enregistrement.</p>
+      </div>
+      <div class="measure-body">
+        <div class="field-grid acc-meta-grid">
+          <label class="field">
+            <span>Distance (m)</span>
+            <input id="acc-distance" type="number" min="1" step="1" inputmode="decimal" value="${current.distanceM || 20}" />
+          </label>
+          <label class="field">
+            <span>Frequence cible (Hz)</span>
+            <input id="acc-target-hz" type="number" min="1" step="1" inputmode="numeric" value="${current.targetHz || 100}" />
+          </label>
+          <label class="field">
+            <span>Position telephone</span>
+            <select id="acc-position">
+              <option value="belt"${current.phonePosition === "belt" ? " selected" : ""}>bas du dos / ceinture</option>
+              <option value="pocket"${current.phonePosition === "pocket" ? " selected" : ""}>poche</option>
+              <option value="hand"${current.phonePosition === "hand" ? " selected" : ""}>main</option>
+              <option value="other"${current.phonePosition === "other" ? " selected" : ""}>autre</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Consigne</span>
+            <select id="acc-instruction">
+              <option value="comfortable"${current.instruction === "comfortable" ? " selected" : ""}>marche confortable</option>
+              <option value="fast"${current.instruction === "fast" ? " selected" : ""}>marche rapide</option>
+              <option value="dual-task"${current.instruction === "dual-task" ? " selected" : ""}>double tache</option>
+              <option value="other"${current.instruction === "other" ? " selected" : ""}>autre</option>
+            </select>
+          </label>
+        </div>
+        <div class="field-grid acc-meta-grid">
+          <label class="field">
+            <span>Patient ID</span>
+            <input id="acc-patient-id" type="text" value="${state.participantId.trim() || ""}" placeholder="Repris depuis l'identification" disabled />
+          </label>
+          <label class="field">
+            <span>Test ID</span>
+            <input id="acc-test-id" type="text" value="${current.testId || ""}" readonly />
+          </label>
+        </div>
+        <label class="field">
+          <span>Commentaire libre</span>
+          <textarea id="acc-comment" rows="4" placeholder="Contexte de marche, aide technique, remarques utiles...">${current.comment || ""}</textarea>
+        </label>
+        <label class="choice-inline">
+          <input id="acc-use-full-recording" type="checkbox" ${current.useFullRecording ? "checked" : ""} />
+          <span>Utiliser tout l'enregistrement si la detection des pichenettes est incertaine</span>
+        </label>
+        <div class="protocol-note">
+          <strong>Consigne operatoire</strong>
+          <span>Donner une pichenette nette au telephone au debut et a la fin du trajet.</span>
+        </div>
+        <div class="acc-button-grid">
+          <button class="secondary-action" type="button" data-action="acc-request-permission">Autoriser l'accelerometre</button>
+          <button class="primary-action" type="button" data-action="acc-start"${accelerometerRuntime && accelerometerRuntime.recording ? " disabled" : ""}>Demarrer l'enregistrement</button>
+          <button class="secondary-action" type="button" data-action="acc-stop"${accelerometerRuntime && accelerometerRuntime.recording ? "" : " disabled"}>Arreter l'enregistrement</button>
+          <button class="secondary-action" type="button" data-action="acc-reset">Reinitialiser le test</button>
+          <button class="primary-action" type="button" data-action="acc-export">Exporter Excel</button>
+          <button class="secondary-action" type="button" data-action="acc-save-return">Enregistrer et revenir</button>
+        </div>
+        <div class="acc-status-grid">
+          <div class="computed"><span>Etat capteur</span><strong>${accelerometerRuntime ? (accelerometerRuntime.permission === "granted" ? "Actif" : accelerometerRuntime.permission === "denied" ? "Refuse" : accelerometerRuntime.permission === "unsupported" ? "Indisponible" : "A autoriser") : "Module indisponible"}</strong></div>
+          <div class="computed"><span>Duree enregistrement</span><strong id="acc-live-duration">${formatValueOrNa(live.durationS, 2, "s")}</strong></div>
+          <div class="computed"><span>Nombre d'echantillons</span><strong id="acc-live-samples">${live.sampleCount || 0}</strong></div>
+          <div class="computed"><span>Frequence reelle estimee</span><strong id="acc-live-fs">${formatValueOrNa(live.estimatedHz, 1, "Hz")}</strong></div>
+        </div>
+        ${current.lastError ? `<div class="protocol-note warning-note"><strong>Erreur</strong><span>${current.lastError}</span></div>` : ""}
+        ${results ? accelerometerResultCards(results) : ""}
+        ${results ? `
+          <div class="chart-stack">
+            <section class="chart-panel">
+              <h4>Signal acc_norm brut</h4>
+              <canvas id="acc-chart-raw" width="640" height="220"></canvas>
+            </section>
+            <section class="chart-panel">
+              <h4>Signal filtre et pas detectes</h4>
+              <canvas id="acc-chart-filtered" width="640" height="220"></canvas>
+            </section>
+            <section class="chart-panel">
+              <h4>Histogramme des intervalles de pas</h4>
+              <canvas id="acc-chart-hist" width="640" height="220"></canvas>
+            </section>
+            <section class="chart-panel">
+              <h4>DFA log-log signal continu</h4>
+              <canvas id="acc-chart-dfa" width="640" height="220"></canvas>
+            </section>
+            <section class="chart-panel">
+              <h4>Serie des intervalles de pas</h4>
+              <canvas id="acc-chart-steps" width="640" height="220"></canvas>
+            </section>
+            <section class="chart-panel">
+              <h4>Serie des intervalles de foulee</h4>
+              <canvas id="acc-chart-strides" width="640" height="220"></canvas>
+            </section>
+          </div>
+        ` : ""}
+      </div>
+    </article>
+  `;
+  if (results) window.setTimeout(renderAccelerometerCharts, 20);
+}
+
+function drawLineChart(canvasId, points, options) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas || !canvas.getContext) return;
+  const context = canvas.getContext("2d");
+  const width = canvas.width;
+  const height = canvas.height;
+  const padding = 26;
+  context.clearRect(0, 0, width, height);
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, width, height);
+  context.strokeStyle = "#d9e1e8";
+  context.strokeRect(0.5, 0.5, width - 1, height - 1);
+
+  const filtered = (points || []).filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y));
+  if (!filtered.length) {
+    context.fillStyle = "#647182";
+    context.font = "14px sans-serif";
+    context.fillText("Pas de donnees", 18, height / 2);
+    return;
+  }
+
+  let minX = filtered[0].x;
+  let maxX = filtered[0].x;
+  let minY = filtered[0].y;
+  let maxY = filtered[0].y;
+  for (let index = 1; index < filtered.length; index += 1) {
+    minX = Math.min(minX, filtered[index].x);
+    maxX = Math.max(maxX, filtered[index].x);
+    minY = Math.min(minY, filtered[index].y);
+    maxY = Math.max(maxY, filtered[index].y);
+  }
+  if (minX === maxX) maxX += 1;
+  if (minY === maxY) maxY += 1;
+
+  const projectX = (value) => padding + (((value - minX) / (maxX - minX)) * (width - (padding * 2)));
+  const projectY = (value) => height - padding - (((value - minY) / (maxY - minY)) * (height - (padding * 2)));
+
+  context.strokeStyle = "#0f766e";
+  context.lineWidth = 2;
+  context.beginPath();
+  for (let index = 0; index < filtered.length; index += 1) {
+    const x = projectX(filtered[index].x);
+    const y = projectY(filtered[index].y);
+    if (index === 0) context.moveTo(x, y);
+    else context.lineTo(x, y);
+  }
+  context.stroke();
+
+  if (options && Array.isArray(options.markers)) {
+    context.strokeStyle = "#b9403a";
+    context.fillStyle = "#b9403a";
+    for (let index = 0; index < options.markers.length; index += 1) {
+      const markerX = options.markers[index];
+      if (!Number.isFinite(markerX)) continue;
+      const x = projectX(markerX);
+      context.beginPath();
+      context.moveTo(x, padding / 2);
+      context.lineTo(x, height - (padding / 2));
+      context.stroke();
+    }
+  }
+
+  if (options && Array.isArray(options.scatter)) {
+    context.fillStyle = "#a16207";
+    for (let index = 0; index < options.scatter.length; index += 1) {
+      const point = options.scatter[index];
+      if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) continue;
+      const x = projectX(point.x);
+      const y = projectY(point.y);
+      context.beginPath();
+      context.arc(x, y, 3.5, 0, Math.PI * 2);
+      context.fill();
+    }
+  }
+}
+
+function drawHistogramChart(canvasId, values) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas || !canvas.getContext) return;
+  const context = canvas.getContext("2d");
+  const width = canvas.width;
+  const height = canvas.height;
+  const padding = 26;
+  context.clearRect(0, 0, width, height);
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, width, height);
+  context.strokeStyle = "#d9e1e8";
+  context.strokeRect(0.5, 0.5, width - 1, height - 1);
+
+  const series = (values || []).filter((value) => Number.isFinite(value));
+  if (!series.length) {
+    context.fillStyle = "#647182";
+    context.font = "14px sans-serif";
+    context.fillText("Pas de donnees", 18, height / 2);
+    return;
+  }
+
+  let min = Math.min.apply(null, series);
+  let max = Math.max.apply(null, series);
+  if (min === max) max += 0.1;
+  const bins = Math.min(8, Math.max(4, Math.round(Math.sqrt(series.length))));
+  const bucketSize = (max - min) / bins;
+  const counts = new Array(bins).fill(0);
+  for (let index = 0; index < series.length; index += 1) {
+    const rawIndex = Math.floor((series[index] - min) / bucketSize);
+    const bucketIndex = Math.max(0, Math.min(bins - 1, rawIndex));
+    counts[bucketIndex] += 1;
+  }
+  const maxCount = Math.max.apply(null, counts) || 1;
+  const barWidth = (width - (padding * 2)) / bins;
+  for (let index = 0; index < counts.length; index += 1) {
+    const barHeight = (counts[index] / maxCount) * (height - (padding * 2));
+    context.fillStyle = "#23527c";
+    context.fillRect(padding + (index * barWidth) + 4, height - padding - barHeight, barWidth - 8, barHeight);
+  }
+}
+
+function renderAccelerometerCharts() {
+  const current = accelerometerState();
+  const results = current.analysis && current.analysis.results;
+  if (!results || !results.graphData) return;
+  drawLineChart("acc-chart-raw", results.graphData.raw);
+  drawLineChart("acc-chart-filtered", results.graphData.filteredSegment, {
+    markers: results.graphData.stepTimes,
+  });
+  drawHistogramChart("acc-chart-hist", results.graphData.stepIntervals);
+  drawLineChart("acc-chart-dfa", (results.graphData.dfa || []).map((point) => ({ x: point.x, y: point.y })));
+  drawLineChart("acc-chart-steps", (results.graphData.stepIntervals || []).map((value, index) => ({ x: index + 1, y: value })));
+  drawLineChart("acc-chart-strides", (results.graphData.strideIntervals || []).map((value, index) => ({ x: index + 1, y: value })));
 }
 
 function balanceScoreFromValues(values) {
@@ -866,6 +1204,9 @@ function openSimpleModule(moduleId) {
       firstIncomplete = Math.min(index + 1, walkSequence.length - 1);
     }
     state.simpleWorkflow.walkIndex = firstIncomplete;
+  }
+  if (moduleId === "accelerometer") {
+    ensureAccelerometerIdentity();
   }
   saveState();
   renderSimpleWorkflow();
@@ -1127,6 +1468,7 @@ function simpleExportSummaryLines() {
     `DT usuelle Parties du corps : ${walkValuesFor("dtUsualBody").time || ""}`,
     `DT rapide Vetements : ${walkValuesFor("dtFastClothes").time || ""}`,
     `DT rapide Meubles : ${walkValuesFor("dtFastFurniture").time || ""}`,
+    accelerometerSummaryLine(),
     `5 levers de chaise : ${state.simpleStrength.chair5Time || ""}`,
     balanceSummary(),
     autonomySummary(),
@@ -1146,7 +1488,7 @@ function simpleWorkbookRecord() {
   const moduleNotes = [];
   for (let index = 0; index < moduleDefinitions.length; index += 1) {
     const moduleId = moduleDefinitions[index].id;
-    if (moduleId === "walk" || moduleId === "strength" || moduleId === "autonomy" || moduleId === "balance") continue;
+    if (moduleId === "walk" || moduleId === "accelerometer" || moduleId === "strength" || moduleId === "autonomy" || moduleId === "balance") continue;
     const note = String(state.simpleNotes[moduleId] || "").trim();
     if (note) moduleNotes.push(`${moduleDefinitions[index].label} : ${note}`);
   }
@@ -1169,7 +1511,7 @@ function simpleWorkbookRecord() {
     E33: cellValues.E33 || "",
     B35: cellValues.B35 || "",
     E35: cellValues.E35 || "",
-    A42: [balanceSummary(), state.simpleBalance.note ? `Equilibre : ${state.simpleBalance.note}` : "", state.simpleStrength.note ? `Force : ${state.simpleStrength.note}` : "", state.simpleStrength.impossibleWithoutHands ? "Force : impossible sans les mains" : "", autonomySummary(), state.simpleAutonomy.note ? `Autonomie : ${state.simpleAutonomy.note}` : "", moduleNotes.join("\n")].filter(Boolean).join("\n"),
+    A42: [accelerometerSummaryLine(), balanceSummary(), state.simpleBalance.note ? `Equilibre : ${state.simpleBalance.note}` : "", state.simpleStrength.note ? `Force : ${state.simpleStrength.note}` : "", state.simpleStrength.impossibleWithoutHands ? "Force : impossible sans les mains" : "", autonomySummary(), state.simpleAutonomy.note ? `Autonomie : ${state.simpleAutonomy.note}` : "", moduleNotes.join("\n")].filter(Boolean).join("\n"),
   };
 }
 
@@ -1182,7 +1524,7 @@ function simpleTemplateWorkbookRecord() {
   const moduleNotes = [];
   for (let index = 0; index < moduleDefinitions.length; index += 1) {
     const moduleId = moduleDefinitions[index].id;
-    if (moduleId === "walk" || moduleId === "strength" || moduleId === "autonomy" || moduleId === "balance") continue;
+    if (moduleId === "walk" || moduleId === "accelerometer" || moduleId === "strength" || moduleId === "autonomy" || moduleId === "balance") continue;
     const note = String(state.simpleNotes[moduleId] || "").trim();
     if (note) moduleNotes.push(`${moduleDefinitions[index].label} : ${note}`);
   }
@@ -1207,7 +1549,7 @@ function simpleTemplateWorkbookRecord() {
     E33: cellValues.E33,
     B35: cellValues.B35,
     E35: cellValues.E35,
-    A42: [balanceSummary(), state.simpleBalance.note ? `Equilibre : ${state.simpleBalance.note}` : "", state.simpleStrength.note ? `Force : ${state.simpleStrength.note}` : "", state.simpleStrength.impossibleWithoutHands ? "Force : impossible sans les mains" : "", autonomySummary(), state.simpleAutonomy.note ? `Autonomie : ${state.simpleAutonomy.note}` : "", moduleNotes.join("\n")].filter(Boolean).join("\n"),
+    A42: [accelerometerSummaryLine(), balanceSummary(), state.simpleBalance.note ? `Equilibre : ${state.simpleBalance.note}` : "", state.simpleStrength.note ? `Force : ${state.simpleStrength.note}` : "", state.simpleStrength.impossibleWithoutHands ? "Force : impossible sans les mains" : "", autonomySummary(), state.simpleAutonomy.note ? `Autonomie : ${state.simpleAutonomy.note}` : "", moduleNotes.join("\n")].filter(Boolean).join("\n"),
   };
 }
 
@@ -1256,6 +1598,162 @@ function modelWorkbookFileName() {
   return `${participant.replace(/[^a-z0-9_-]+/gi, "_")}_${stamp}_fiche_modele.xlsx`;
 }
 
+const accRawHeaders = [
+  "patient_id", "date_heure", "test_id", "timestamp_ms", "time_s", "ax", "ay", "az",
+  "gx", "gy", "gz", "rotation_alpha", "rotation_beta", "rotation_gamma", "acc_norm",
+  "acc_norm_centered", "acc_norm_filtered", "segment_analyse", "pic_pas_detecte",
+  "marker_pichenette", "fs_reelle_hz", "position_telephone", "consigne", "distance_m",
+];
+
+const accResultsHeaders = [
+  "patient_id", "date_heure", "test_id", "distance_m", "consigne", "position_telephone",
+  "commentaire_libre", "frequence_cible_hz", "frequence_reelle_hz", "duree_totale_s",
+  "duree_analysee_s", "nb_echantillons_total", "nb_echantillons_analyse",
+  "detection_pichenettes_ok", "pichenette_start_time_s", "pichenette_end_time_s",
+  "nb_pas_detectes", "cadence_pas_min", "longueur_pas_moyenne_m", "intervalle_pas_moyen_s",
+  "intervalle_pas_sd_s", "intervalle_pas_cv_pourcent", "nb_intervalles_pas",
+  "nb_intervalles_aberrants", "sample_entropy_norm", "sample_entropy_ax", "sample_entropy_ay",
+  "sample_entropy_az", "dfa_alpha_norm", "dfa_r2_norm", "dfa_nb_points", "dfa_nb_windows",
+  "dfa_window_min_s", "dfa_window_max_s", "sample_entropy_step_intervals",
+  "nb_step_intervals_for_entropy", "interpretation_sample_entropy_step_intervals",
+  "dfa_alpha_step_intervals", "dfa_r2_step_intervals", "nb_step_intervals_for_dfa",
+  "interpretation_dfa_step_intervals", "nb_stride_intervals", "stride_interval_mean_s",
+  "stride_interval_sd_s", "stride_interval_cv_percent", "sample_entropy_stride_intervals",
+  "dfa_alpha_stride_intervals", "dfa_r2_stride_intervals", "interpretation_stride_nonlinear",
+  "nonlinear_analysis_scope", "nonlinear_analysis_warning", "avertissements", "commentaire_auto",
+];
+
+function escapeXml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+function columnNameFromIndex(index) {
+  let current = index + 1;
+  let name = "";
+  while (current > 0) {
+    const remainder = (current - 1) % 26;
+    name = String.fromCharCode(65 + remainder) + name;
+    current = Math.floor((current - 1) / 26);
+  }
+  return name;
+}
+
+function worksheetXmlFromRows(rows, headers) {
+  const tableRows = [headers];
+  for (let index = 0; index < rows.length; index += 1) {
+    const row = rows[index];
+    tableRows.push(headers.map((header) => (row && row[header] != null ? row[header] : "")));
+  }
+  const lastRef = `${columnNameFromIndex(headers.length - 1)}${tableRows.length}`;
+  const xmlRows = [];
+  for (let rowIndex = 0; rowIndex < tableRows.length; rowIndex += 1) {
+    const rowValues = tableRows[rowIndex];
+    const cellXml = [];
+    for (let columnIndex = 0; columnIndex < rowValues.length; columnIndex += 1) {
+      const ref = `${columnNameFromIndex(columnIndex)}${rowIndex + 1}`;
+      const value = rowValues[columnIndex];
+      if (typeof value === "boolean") {
+        cellXml.push(`<c r="${ref}" t="b"><v>${value ? 1 : 0}</v></c>`);
+      } else if (Number.isFinite(value)) {
+        cellXml.push(`<c r="${ref}"><v>${value}</v></c>`);
+      } else if (value == null || value === "") {
+        cellXml.push(`<c r="${ref}" t="inlineStr"><is><t></t></is></c>`);
+      } else {
+        cellXml.push(`<c r="${ref}" t="inlineStr"><is><t xml:space="preserve">${escapeXml(value)}</t></is></c>`);
+      }
+    }
+    xmlRows.push(`<row r="${rowIndex + 1}">${cellXml.join("")}</row>`);
+  }
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <dimension ref="A1:${lastRef}"/>
+  <sheetViews><sheetView workbookViewId="0"/></sheetViews>
+  <sheetFormatPr defaultRowHeight="15"/>
+  <sheetData>${xmlRows.join("")}</sheetData>
+</worksheet>`;
+}
+
+async function appendAccelerometerSheetsToZip(zip) {
+  if (!accelerometerApi) return;
+  const workbookFile = zip.file("xl/workbook.xml");
+  const relsFile = zip.file("xl/_rels/workbook.xml.rels");
+  if (!workbookFile || !relsFile) return;
+
+  const workbookDoc = new DOMParser().parseFromString(await workbookFile.async("string"), "application/xml");
+  const relsDoc = new DOMParser().parseFromString(await relsFile.async("string"), "application/xml");
+  const contentTypesDoc = new DOMParser().parseFromString(await zip.file("[Content_Types].xml").async("string"), "application/xml");
+
+  const workbookNs = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
+  const relsNs = "http://schemas.openxmlformats.org/package/2006/relationships";
+  const officeRelNs = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+  const sheetsNode = workbookDoc.getElementsByTagNameNS(workbookNs, "sheets")[0] || workbookDoc.getElementsByTagName("sheets")[0];
+  const relationshipsNode = relsDoc.getElementsByTagNameNS(relsNs, "Relationships")[0] || relsDoc.getElementsByTagName("Relationships")[0];
+  const typesNode = contentTypesDoc.getElementsByTagName("Types")[0];
+  if (!sheetsNode || !relationshipsNode || !typesNode) return;
+
+  const sheetNodes = sheetsNode.getElementsByTagNameNS(workbookNs, "sheet");
+  let nextSheetId = 1;
+  for (let index = 0; index < sheetNodes.length; index += 1) {
+    const sheetId = Number.parseInt(sheetNodes[index].getAttribute("sheetId"), 10);
+    if (Number.isFinite(sheetId) && sheetId >= nextSheetId) nextSheetId = sheetId + 1;
+  }
+
+  const relationshipNodes = relationshipsNode.getElementsByTagNameNS(relsNs, "Relationship");
+  let nextRid = 1;
+  for (let index = 0; index < relationshipNodes.length; index += 1) {
+    const id = relationshipNodes[index].getAttribute("Id") || "";
+    const numeric = Number.parseInt(id.replace("rId", ""), 10);
+    if (Number.isFinite(numeric) && numeric >= nextRid) nextRid = numeric + 1;
+  }
+
+  const existingSheetFiles = Object.keys(zip.files)
+    .map((path) => {
+      const match = path.match(/^xl\/worksheets\/sheet(\d+)\.xml$/);
+      return match ? Number.parseInt(match[1], 10) : null;
+    })
+    .filter((value) => Number.isFinite(value));
+  let nextSheetNumber = existingSheetFiles.length ? Math.max.apply(null, existingSheetFiles) + 1 : 1;
+
+  const addSheet = (sheetName, rows, headers) => {
+    const sheetNumber = nextSheetNumber;
+    nextSheetNumber += 1;
+    const sheetFilePath = `xl/worksheets/sheet${sheetNumber}.xml`;
+    zip.file(sheetFilePath, worksheetXmlFromRows(rows, headers));
+
+    const relationship = relsDoc.createElementNS(relsNs, "Relationship");
+    relationship.setAttribute("Id", `rId${nextRid}`);
+    relationship.setAttribute("Type", "http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet");
+    relationship.setAttribute("Target", `worksheets/sheet${sheetNumber}.xml`);
+    relationshipsNode.appendChild(relationship);
+
+    const sheet = workbookDoc.createElementNS(workbookNs, "sheet");
+    sheet.setAttribute("name", sheetName);
+    sheet.setAttribute("sheetId", String(nextSheetId));
+    sheet.setAttributeNS(officeRelNs, "r:id", `rId${nextRid}`);
+    sheetsNode.appendChild(sheet);
+
+    const override = contentTypesDoc.createElement("Override");
+    override.setAttribute("PartName", `/${sheetFilePath}`);
+    override.setAttribute("ContentType", "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml");
+    typesNode.appendChild(override);
+
+    nextSheetId += 1;
+    nextRid += 1;
+  };
+
+  addSheet("ACC_BRUT", accelerometerApi.buildRawExportRows(accelerometerState()), accRawHeaders);
+  addSheet("ACC_RESULTATS", [accelerometerApi.buildResultsExportRow(accelerometerState())], accResultsHeaders);
+
+  zip.file("xl/workbook.xml", new XMLSerializer().serializeToString(workbookDoc));
+  zip.file("xl/_rels/workbook.xml.rels", new XMLSerializer().serializeToString(relsDoc));
+  zip.file("[Content_Types].xml", new XMLSerializer().serializeToString(contentTypesDoc));
+}
+
 function setSheetCell(sheet, ref, value) {
   if (value == null || value === "") return;
   const current = sheet[ref] ? { ...sheet[ref] } : {};
@@ -1296,6 +1794,10 @@ function buildGeneratedWorkbook() {
     ["DT usuelle Parties du corps", walkValuesFor("dtUsualBody").time || ""],
     ["DT rapide Vetements", walkValuesFor("dtFastClothes").time || ""],
     ["DT rapide Meubles", walkValuesFor("dtFastFurniture").time || ""],
+    [],
+    ["Accelerometre 20 m"],
+    ["Resume accelerometre", accelerometerSummaryLine() || ""],
+    ["Avertissements accelerometre", accelerometerState().analysis && accelerometerState().analysis.results ? accelerometerState().analysis.results.avertissements || "" : ""],
     [],
     ["Force"],
     ["5 levers de chaise", state.simpleStrength.chair5Time || ""],
@@ -1364,6 +1866,10 @@ function buildGeneratedWorkbook() {
   recueilSheet["!ref"] = "A1:B25";
   XLSX.utils.book_append_sheet(workbook, recueilSheet, "Recueil brut");
 
+  if (accelerometerApi && typeof accelerometerApi.appendAccelerometerSheetsToWorkbook === "function") {
+    accelerometerApi.appendAccelerometerSheetsToWorkbook(workbook, accelerometerState());
+  }
+
   return workbook;
 }
 
@@ -1425,6 +1931,8 @@ async function buildSimpleModelExcelFile() {
     zip.remove("xl/calcChain.xml");
   }
 
+  await appendAccelerometerSheetsToZip(zip);
+
   const blob = await zip.generateAsync({ type: "blob" });
   return { blob, filename: modelWorkbookFileName() };
 }
@@ -1451,6 +1959,7 @@ async function shareWorkbookFile(fileData) {
 
 async function shareSimpleModelExcel() {
   try {
+    if (state.simpleWorkflow.module === "accelerometer") syncAccelerometerFieldsFromUi();
     await shareWorkbookFile(await buildSimpleModelExcelFile());
   } catch (error) {
     alert(error && error.message ? error.message : "Export Excel modele impossible.");
@@ -1459,10 +1968,113 @@ async function shareSimpleModelExcel() {
 
 async function shareSimpleExcel() {
   try {
+    if (state.simpleWorkflow.module === "accelerometer") syncAccelerometerFieldsFromUi();
     await shareWorkbookFile(await buildSimpleExcelFile());
   } catch (error) {
     alert(error && error.message ? error.message : "Export Excel impossible.");
   }
+}
+
+function syncAccelerometerFieldsFromUi() {
+  const current = ensureAccelerometerIdentity();
+  const distanceInput = document.getElementById("acc-distance");
+  const targetInput = document.getElementById("acc-target-hz");
+  const positionInput = document.getElementById("acc-position");
+  const instructionInput = document.getElementById("acc-instruction");
+  const commentInput = document.getElementById("acc-comment");
+  const useFullInput = document.getElementById("acc-use-full-recording");
+  current.distanceM = distanceInput ? distanceInput.value : current.distanceM;
+  current.targetHz = targetInput ? targetInput.value : current.targetHz;
+  current.phonePosition = positionInput ? positionInput.value : current.phonePosition;
+  current.instruction = instructionInput ? instructionInput.value : current.instruction;
+  current.comment = commentInput ? commentInput.value : current.comment;
+  current.useFullRecording = Boolean(useFullInput && useFullInput.checked);
+  current.patientId = state.participantId.trim() || "";
+  if (!current.dateHeure) current.dateHeure = new Date().toISOString();
+  if (!current.testId && accelerometerApi) current.testId = accelerometerApi.generateTestId();
+  return current;
+}
+
+function accelerometerLiveUpdate(stats) {
+  const current = accelerometerState();
+  current.liveStats = {
+    durationS: stats.durationS,
+    sampleCount: stats.sampleCount,
+    estimatedHz: stats.estimatedHz,
+  };
+  const durationNode = document.getElementById("acc-live-duration");
+  const samplesNode = document.getElementById("acc-live-samples");
+  const fsNode = document.getElementById("acc-live-fs");
+  if (durationNode) durationNode.textContent = formatValueOrNa(stats.durationS, 2, "s");
+  if (samplesNode) samplesNode.textContent = String(stats.sampleCount || 0);
+  if (fsNode) fsNode.textContent = formatValueOrNa(stats.estimatedHz, 1, "Hz");
+}
+
+async function requestAccelerometerPermission() {
+  if (!accelerometerApi || !accelerometerRuntime) {
+    alert("Module accelerometre indisponible dans cette version.");
+    return;
+  }
+  const current = ensureAccelerometerIdentity();
+  current.lastError = "";
+  const permission = await accelerometerApi.requestMotionPermission(accelerometerRuntime);
+  if (permission === "denied") current.lastError = accelerometerRuntime.lastError || "Autorisation refusee.";
+  if (permission === "unsupported") current.lastError = accelerometerRuntime.lastError || "Accelerometre non disponible.";
+  saveState();
+  renderSimpleWorkflow();
+}
+
+function startAccelerometerRecording() {
+  if (!accelerometerApi || !accelerometerRuntime) {
+    alert("Module accelerometre indisponible dans cette version.");
+    return;
+  }
+  const current = syncAccelerometerFieldsFromUi();
+  current.dateHeure = new Date().toISOString();
+  current.lastError = "";
+  current.status = "recording";
+  current.analysis = null;
+  current.rawSamples = [];
+  try {
+    accelerometerApi.startRecording(accelerometerRuntime, current, accelerometerLiveUpdate);
+    saveState();
+    renderSimpleWorkflow();
+  } catch (error) {
+    current.lastError = error && error.message ? error.message : "Demarrage impossible.";
+    current.status = "error";
+    saveState();
+    renderSimpleWorkflow();
+  }
+}
+
+function stopAccelerometerRecording() {
+  if (!accelerometerApi || !accelerometerRuntime) return;
+  const current = syncAccelerometerFieldsFromUi();
+  current.lastError = "";
+  current.status = "stopped";
+  current.rawSamples = accelerometerApi.stopRecording(accelerometerRuntime);
+  current.liveStats = accelerometerApi.getLiveStats(accelerometerRuntime);
+  const analysis = accelerometerApi.analyseRecording(current);
+  current.rawSamples = analysis.processedSamples;
+  current.analysis = analysis;
+  current.status = analysis.errors && analysis.errors.length ? "error" : "analysed";
+  if (analysis.errors && analysis.errors.length) current.lastError = analysis.errors.join(" | ");
+  saveState();
+  renderSimpleWorkflow();
+}
+
+function resetAccelerometerTest() {
+  if (accelerometerApi && accelerometerRuntime) accelerometerApi.resetRecording(accelerometerRuntime);
+  state.simpleAccelerometer = normalizeState(null).simpleAccelerometer;
+  ensureAccelerometerIdentity();
+  saveState();
+  renderSimpleWorkflow();
+}
+
+function saveAccelerometerAndReturn() {
+  syncAccelerometerFieldsFromUi();
+  saveState();
+  returnToSimpleMenu();
 }
 
 async function copyText(text) {
@@ -1575,6 +2187,10 @@ function resetState() {
     cancelAnimationFrame(timer.raf);
   });
   timerState.clear();
+  if (accelerometerApi && accelerometerRuntime) {
+    accelerometerApi.resetRecording(accelerometerRuntime);
+    accelerometerApi.detachListener(accelerometerRuntime);
+  }
   hideStopOverlay();
   saveState();
   participantInput.value = "";
@@ -1663,6 +2279,34 @@ function bindEvents() {
     }
     if (target.dataset.action === "enable-motion") {
       requestMotionAccess();
+    }
+  });
+
+  document.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!target || !target.dataset) return;
+    if (target.dataset.action === "acc-request-permission") {
+      requestAccelerometerPermission();
+      return;
+    }
+    if (target.dataset.action === "acc-start") {
+      startAccelerometerRecording();
+      return;
+    }
+    if (target.dataset.action === "acc-stop") {
+      stopAccelerometerRecording();
+      return;
+    }
+    if (target.dataset.action === "acc-reset") {
+      resetAccelerometerTest();
+      return;
+    }
+    if (target.dataset.action === "acc-export") {
+      shareSimpleModelExcel();
+      return;
+    }
+    if (target.dataset.action === "acc-save-return") {
+      saveAccelerometerAndReturn();
     }
   });
 
