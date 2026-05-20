@@ -130,6 +130,7 @@ const defaultState = {
   simpleAutonomy: {
     adl: { toilette: false, habillage: false, alimentation: false, transferts: false, continence: false, deplacements: false, releverSol: false },
     iadl: { telephone: false, courses: false, repas: false, menage: false, lessive: false, transports: false, traitement: false, finances: false },
+    sf12: "",
     note: "",
   },
   simpleBalance: {
@@ -424,7 +425,7 @@ function moduleDone(moduleId) {
   if (moduleId === "autonomy") {
     const adl = state.simpleAutonomy.adl || {};
     const iadl = state.simpleAutonomy.iadl || {};
-    return Object.values(adl).some(Boolean) || Object.values(iadl).some(Boolean) || Boolean(String(state.simpleAutonomy.note || "").trim());
+    return Object.values(adl).some(Boolean) || Object.values(iadl).some(Boolean) || Boolean(String(state.simpleAutonomy.sf12 || "").trim()) || Boolean(String(state.simpleAutonomy.note || "").trim());
   }
   return Boolean(String(state.simpleNotes[moduleId] || "").trim());
 }
@@ -647,6 +648,10 @@ function renderAutonomyWorkflow() {
             `).join("")}
           </div>
         </div>
+        <label class="field">
+          <span>SF-12</span>
+          <input id="autonomy-sf12" type="text" inputmode="text" value="${values.sf12 || ""}" placeholder="Score ou synthese SF-12" />
+        </label>
         <label class="field">
           <span>Note libre</span>
           <textarea id="autonomy-note" rows="5" placeholder="Aide humaine, supervision, precision utile...">${values.note || ""}</textarea>
@@ -933,6 +938,7 @@ function autonomySummary() {
   const parts = [];
   if (adl.length) parts.push(`ADL : ${adl.join(", ")}`);
   if (iadl.length) parts.push(`IADL : ${iadl.join(", ")}`);
+  if (String(state.simpleAutonomy.sf12 || "").trim()) parts.push(`SF-12 : ${state.simpleAutonomy.sf12.trim()}`);
   return parts.join(" | ");
 }
 
@@ -1369,7 +1375,9 @@ function handleWorkflowPrimary() {
       const key = input.dataset.autonomyKey;
       state.simpleAutonomy[group][key] = Boolean(input.checked);
     });
+    const sf12Input = document.getElementById("autonomy-sf12");
     const noteInput = document.getElementById("autonomy-note");
+    state.simpleAutonomy.sf12 = sf12Input ? sf12Input.value : state.simpleAutonomy.sf12;
     state.simpleAutonomy.note = noteInput ? noteInput.value : state.simpleAutonomy.note;
     saveState();
     returnToSimpleMenu();
